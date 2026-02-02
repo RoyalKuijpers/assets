@@ -1,0 +1,135 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_office365": {
+        "api": {
+          "name": "shared_office365"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "new_sharedoffice365_ea17f"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_sharepointonline-1": {
+        "api": {
+          "name": "shared_sharepointonline"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "kva_sharedsharepointonline_c0e98"
+        },
+        "runtimeSource": "embedded"
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        }
+      },
+      "triggers": {
+        "Trigger:_When_a_new_email_arrives_with_subject_starting_with_🤖ASML_EHS_Training": {
+          "type": "OpenApiConnectionNotification",
+          "inputs": {
+            "parameters": {
+              "includeAttachments": true,
+              "subjectFilter": "🤖ASML EHS Trainingsdata | Dagelijkse Update",
+              "fetchOnlyWithAttachment": true
+            },
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+              "operationId": "OnNewEmailV3",
+              "connectionName": "shared_office365"
+            }
+          },
+          "conditions": [],
+          "splitOn": "@triggerOutputs()?['body/value']"
+        }
+      },
+      "actions": {
+        "Condition_🔷_If_attachment_name_equals_TR-data.json": {
+          "type": "If",
+          "expression": {
+            "and": [
+              {
+                "equals": [
+                  "@triggerOutputs()?['body/attachments/name']",
+                  "TR-data.json"
+                ]
+              }
+            ]
+          },
+          "actions": {
+            "Update📂Site_Beheer➡️SyncFolder_ASML_Download➡️File📄": {
+              "type": "OpenApiConnection",
+              "inputs": {
+                "parameters": {
+                  "dataset": "https://mijnkuijpers.sharepoint.com/sites/accountteamASML",
+                  "id": "/Site Beheer/SyncFolder ASML_Download/@{item()?['name']}",
+                  "body": "@item()?['contentBytes']"
+                },
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+                  "operationId": "UpdateFile",
+                  "connectionName": "shared_sharepointonline-1"
+                }
+              },
+              "metadata": {
+                "%252fSite%2bBeheer%252fSyncFolder%2bASML_Download%252fTR-data.json": "/Site Beheer/SyncFolder ASML_Download/TR-data.json"
+              }
+            }
+          },
+          "else": {
+            "actions": {
+              "Terminate_🟠": {
+                "type": "Terminate",
+                "inputs": {
+                  "runStatus": "Cancelled"
+                }
+              }
+            }
+          },
+          "runAfter": {}
+        },
+        "Delete_email_(V2)": {
+          "type": "OpenApiConnection",
+          "inputs": {
+            "parameters": {
+              "messageId": "@triggerOutputs()?['body/id']"
+            },
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+              "operationId": "DeleteEmail_V2",
+              "connectionName": "shared_office365"
+            }
+          },
+          "runAfter": {
+            "Condition_🔷_If_attachment_name_equals_TR-data.json": [
+              "SUCCEEDED"
+            ]
+          }
+        },
+        "Terminate_🟢": {
+          "type": "Terminate",
+          "inputs": {
+            "runStatus": "Succeeded"
+          },
+          "runAfter": {
+            "Delete_email_(V2)": [
+              "SUCCEEDED"
+            ]
+          }
+        }
+      },
+      "outputs": {}
+    },
+    "templateName": null
+  },
+  "schemaVersion": "1.0.0.0"
+}

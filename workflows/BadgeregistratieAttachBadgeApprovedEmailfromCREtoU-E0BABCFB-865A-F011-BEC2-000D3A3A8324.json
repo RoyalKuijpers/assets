@@ -1,0 +1,479 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_office365": {
+        "api": {
+          "name": "shared_office365"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "new_sharedoffice365_9faa9"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_sharepointonline": {
+        "api": {
+          "name": "shared_sharepointonline"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "new_sharedsharepointonline_86c74"
+        },
+        "runtimeSource": "embedded"
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        }
+      },
+      "triggers": {
+        "When_Email_Arrives:_Badge_Approved_ASML": {
+          "type": "OpenApiConnection",
+          "description": "Polls every minute to check for badge approval emails from CRE Projectsupport",
+          "inputs": {
+            "parameters": {
+              "mailboxAddress": "asmlpasaanvraag@kuijpers.com",
+              "from": "creprojectsupport@asml.com",
+              "subjectFilter": "🆕 Aanvraag voor ASML Toegangspas - Vereiste Informatie"
+            },
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+              "operationId": "SharedMailboxOnNewEmailV2",
+              "connectionName": "shared_office365"
+            }
+          },
+          "recurrence": {
+            "frequency": "Minute",
+            "interval": 1
+          },
+          "conditions": [
+            {
+              "expression": "@or(contains(triggerBody()?['Body'], 'badge is aangevraagd'), contains(triggerBody()?['BodyPreview'], 'badge is aangevraagd'))"
+            }
+          ],
+          "splitOn": "@triggerOutputs()?['body/value']"
+        }
+      },
+      "actions": {
+        "Scope:_Update_Badge_Registration": {
+          "type": "Scope",
+          "description": "Groups actions to update the SharePoint list and handle errors.",
+          "actions": {
+            "Catch:_Handle_Update_Errors": {
+              "type": "Scope",
+              "actions": {
+                "Compose:_Write_scope_results_to_log_file": {
+                  "type": "Compose",
+                  "inputs": "Output of Badge Registration: @{actions('Try:_Update_Badge_Registration')} \nOutput of Get details and export mail: @{actions('Try:_Get_details_and_export_mail')}"
+                },
+                "Append_to_string:_Set_result_status": {
+                  "type": "AppendToStringVariable",
+                  "inputs": {
+                    "name": "varHtml",
+                    "value": "@concat(\r\n    '<h3 class=\"failure\">Scope Update Badge Registration – FAILED</h3>',\r\n    '<p><strong>Error:</strong> ',\r\n     outputs('Compose:_Write_scope_results_to_log_file'),\r\n    '</p>'\r\n  )"
+                  },
+                  "runAfter": {
+                    "Compose:_Write_scope_results_to_log_file": [
+                      "Succeeded"
+                    ]
+                  }
+                }
+              },
+              "runAfter": {
+                "Condition": [
+                  "TimedOut",
+                  "Skipped",
+                  "Failed"
+                ],
+                "Try:_Get_details_and_export_mail": [
+                  "Failed",
+                  "TimedOut",
+                  "Skipped"
+                ]
+              }
+            },
+            "Try:_Get_details_and_export_mail": {
+              "type": "Scope",
+              "actions": {
+                "Export_email:_Save_as_file_to_use_as_attachment": {
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "parameters": {
+                      "messageId": "@triggerOutputs()?['body/id']",
+                      "mailboxAddress": "asmlpasaanvraag@kuijpers.com"
+                    },
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+                      "operationId": "ExportEmail_V2",
+                      "connectionName": "shared_office365"
+                    }
+                  }
+                },
+                "Filter_array:_To_Cc(clean)": {
+                  "type": "Query",
+                  "inputs": {
+                    "from": "@union(split(coalesce(triggerOutputs()?['body/toRecipients'], ''), ';'), split(coalesce(triggerOutputs()?['body/ccRecipients'], ''), ';'))",
+                    "where": "@and(not(equals('asmlpasaanvraag@kuijpers.com', item())), not(empty(item())))"
+                  }
+                }
+              }
+            },
+            "Condition": {
+              "type": "If",
+              "expression": {
+                "and": [
+                  {
+                    "equals": [
+                      "@empty(body('Filter_array:_To_Cc(clean)'))",
+                      true
+                    ]
+                  },
+                  {
+                    "greater": [
+                      "@length(body('Export_email:_Save_as_file_to_use_as_attachment'))",
+                      262144000
+                    ]
+                  }
+                ]
+              },
+              "actions": {
+                "Terminate:_Failed_🔴": {
+                  "type": "Terminate",
+                  "inputs": {
+                    "runStatus": "Failed",
+                    "runError": {
+                      "code": "400",
+                      "message": "No valid recipient email found in To or Cc fields or EML too large (>250MB)"
+                    }
+                  }
+                }
+              },
+              "else": {
+                "actions": {
+                  "Try:_Update_Badge_Registration": {
+                    "type": "Scope",
+                    "actions": {
+                      "Get_item:_Retrieve_Badge_Registration": {
+                        "type": "OpenApiConnection",
+                        "description": "Retrieves the badge registration record matching the To/Cc email.",
+                        "inputs": {
+                          "parameters": {
+                            "dataset": "https://mijnkuijpers.sharepoint.com/sites/accountteamASML",
+                            "table": "e0911890-73ea-487b-8742-768631379470",
+                            "$filter": "E_x002d_Mail eq '@{first(body('Filter_array:_To_Cc(clean)'))}'",
+                            "$top": 1
+                          },
+                          "host": {
+                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+                            "operationId": "GetItems",
+                            "connectionName": "shared_sharepointonline"
+                          }
+                        }
+                      },
+                      "Update_item:_Set_Badge_Approval_Status": {
+                        "type": "OpenApiConnection",
+                        "description": "Updates the badge registration with ASML approval details.",
+                        "inputs": {
+                          "parameters": {
+                            "dataset": "https://mijnkuijpers.sharepoint.com/sites/accountteamASML",
+                            "table": "e0911890-73ea-487b-8742-768631379470",
+                            "id": "@outputs('Get_item:_Retrieve_Badge_Registration')?['body/value'][0]?['Id']",
+                            "item/Naam": "@outputs('Get_item:_Retrieve_Badge_Registration')?['body/value'][0]?['Naam']",
+                            "item/E_x002d_Mail": "@outputs('Get_item:_Retrieve_Badge_Registration')?['body/value'][0]?['E_x002d_Mail']",
+                            "item/StartDate": "@outputs('Get_item:_Retrieve_Badge_Registration')?['body/value'][0]?['StartDate']",
+                            "item/badgeRequestConfirmedASML": true,
+                            "item/badgeRequestStatus": "Goedgekeurd door ASML"
+                          },
+                          "host": {
+                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+                            "operationId": "PatchItem",
+                            "connectionName": "shared_sharepointonline"
+                          }
+                        },
+                        "runAfter": {
+                          "Get_item:_Retrieve_Badge_Registration": [
+                            "Succeeded"
+                          ]
+                        }
+                      },
+                      "Condition_1": {
+                        "type": "If",
+                        "expression": {
+                          "and": [
+                            {
+                              "equals": [
+                                "@empty(outputs('Get_item:_Retrieve_Badge_Registration')?['body/value'])",
+                                true
+                              ]
+                            },
+                            {
+                              "greater": [
+                                "@length(body('Export_email:_Save_as_file_to_use_as_attachment'))",
+                                0
+                              ]
+                            }
+                          ]
+                        },
+                        "actions": {
+                          "Terminate:_Failed_2🔴_": {
+                            "type": "Terminate",
+                            "inputs": {
+                              "runStatus": "Failed",
+                              "runError": {
+                                "code": "400",
+                                "message": "SharePoint item or email content not found. Attachment step skipped. Debuggin Output = @{outputs('Compose')}"
+                              }
+                            },
+                            "runAfter": {
+                              "Compose": [
+                                "Succeeded"
+                              ]
+                            }
+                          },
+                          "Compose": {
+                            "type": "Compose",
+                            "inputs": "SharePointItem: @{outputs('Get_item:_Retrieve_Badge_Registration')?['body/value'][0]}, EmailContentBase64: @{body('Export_email:_Save_as_file_to_use_as_attachment')}"
+                          }
+                        },
+                        "else": {
+                          "actions": {
+                            "Add_attachment": {
+                              "type": "OpenApiConnection",
+                              "inputs": {
+                                "parameters": {
+                                  "dataset": "https://mijnkuijpers.sharepoint.com/sites/accountteamASML",
+                                  "table": "e0911890-73ea-487b-8742-768631379470",
+                                  "itemId": "@outputs('Get_item:_Retrieve_Badge_Registration')?['body/value'][0]?['Id']",
+                                  "displayName": "@concat(if(greater(length(outputs('Compose:_SafeSubject')), 80), substring(outputs('Compose:_SafeSubject'), 0, 80), outputs('Compose:_SafeSubject')), '_', formatDateTime(convertTimeZone(utcNow(), 'UTC', 'W. Europe Standard Time'), 'yyyyMMdd-HHmmss'), '.eml')",
+                                  "body": "@body('Export_email:_Save_as_file_to_use_as_attachment')"
+                                },
+                                "host": {
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+                                  "operationId": "CreateAttachment",
+                                  "connectionName": "shared_sharepointonline"
+                                }
+                              },
+                              "runAfter": {
+                                "DEBUG:_Log_SafeSubject": [
+                                  "Succeeded"
+                                ]
+                              }
+                            },
+                            "Compose:_SafeSubject": {
+                              "type": "Compose",
+                              "inputs": "@{replace(replace(replace(replace(variables('varHtml'), '%', ''), '#', ''), '\\n', ''), '\\r', '')}\n"
+                            },
+                            "DEBUG:_Log_SafeSubject": {
+                              "type": "Compose",
+                              "inputs": "@outputs('Compose:_SafeSubject')",
+                              "runAfter": {
+                                "Compose:_SafeSubject": [
+                                  "Succeeded"
+                                ]
+                              }
+                            }
+                          }
+                        },
+                        "runAfter": {
+                          "Add_Delay_5s_after_Update_item_to_avoid_SP_throttling": [
+                            "Succeeded"
+                          ]
+                        }
+                      },
+                      "Add_Delay_5s_after_Update_item_to_avoid_SP_throttling": {
+                        "type": "Wait",
+                        "inputs": {
+                          "interval": {
+                            "count": 5,
+                            "unit": "Second"
+                          }
+                        },
+                        "runAfter": {
+                          "Update_item:_Set_Badge_Approval_Status": [
+                            "Succeeded"
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  "Append_to_string_variable:_varHTML": {
+                    "type": "AppendToStringVariable",
+                    "inputs": {
+                      "name": "varHtml",
+                      "value": "@{if(empty(outputs('Get_item:_Retrieve_Badge_Registration')?['body/value']), 'No ID', concat('<h3 class=\"success\">Scope Update Badge Registration – SUCCEEDED</h3>','<table>','<tr><th>SharePoint Item ID</th><td>', first(outputs('Get_item:_Retrieve_Badge_Registration')?['body/value'])?['ID'],'</td></tr>','<tr><th>Email (To/Cc)</th><td>', first(outputs('Get_item:_Retrieve_Badge_Registration')?['body/value'])?['E_x002d_Mail'],'</td></tr>','</table>'))}\n"
+                    },
+                    "runAfter": {
+                      "Try:_Update_Badge_Registration": [
+                        "Succeeded"
+                      ]
+                    }
+                  }
+                }
+              },
+              "runAfter": {
+                "Try:_Get_details_and_export_mail": [
+                  "Succeeded"
+                ]
+              }
+            }
+          },
+          "runAfter": {
+            "Initialize_variable:_varHtml": [
+              "Succeeded"
+            ]
+          }
+        },
+        "Condition:_Check_Update_Success": {
+          "type": "If",
+          "expression": {
+            "and": [
+              {
+                "equals": [
+                  "@outputs('Compose:_OverallStatus')",
+                  "Succeeded"
+                ]
+              }
+            ]
+          },
+          "actions": {
+            "Terminate:_Succes_🟢": {
+              "type": "Terminate",
+              "inputs": {
+                "runStatus": "Succeeded"
+              },
+              "runAfter": {
+                "Send_Email:_DebugUse": [
+                  "Succeeded"
+                ]
+              }
+            },
+            "Send_Email:_DebugUse": {
+              "type": "OpenApiConnection",
+              "description": "Notifies process owner of update failures with error details and run history URL.",
+              "inputs": {
+                "parameters": {
+                  "emailMessage/To": "MMeurs@kuijpers.com",
+                  "emailMessage/Subject": "🪲Flow 'Update SharePointlijst Badgeregistratie na akkoord mail ASML' ",
+                  "emailMessage/Body": "<br><br><br>  <strong>Note:</strong> This email contains sensitive information. Do not forward without permission.<br><br><br>  Sent by: KlantteamASML@kuijpers.com<br><p></p><br>",
+                  "emailMessage/From": "KlantteamASML@kuijpers.com",
+                  "emailMessage/Attachments": [
+                    {
+                      "ContentBytes": "@variables('varHTML')",
+                      "Name": "@coalesce( concat( 'debugLog_', substring( replace( replace( replace( replace( replace( replace( replace( replace( coalesce(triggerOutputs()?['body/subject'], 'NoSubject'), '/', '-'), '\\\\', '-'), ':', '-'), '*', '-'), '?', '-'), '\"', '-'), '<', '-'), '>', '-'), 0, min( length( replace( replace( replace( replace( replace( replace( replace( replace( coalesce(triggerOutputs()?['body/subject'], 'NoSubject'), '/', '-'), '\\\\', '-'), ':', '-'), '*', '-'), '?', '-'), '\"', '-'), '<', '-'), '>', '-') ), 80 ) ), '_', formatDateTime(utcNow(),'yyyyMMdd-HHmmss'), '.html' ), 'debugLogautonamingfailback.html' )"
+                    }
+                  ],
+                  "emailMessage/Importance": "High"
+                },
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+                  "operationId": "SendEmailV2",
+                  "connectionName": "shared_office365"
+                }
+              }
+            }
+          },
+          "else": {
+            "actions": {
+              "Send_Email:_Notify_Failure": {
+                "type": "OpenApiConnection",
+                "description": "Notifies process owner of update failures with error details and run history URL.",
+                "inputs": {
+                  "parameters": {
+                    "emailMessage/To": "MMeurs@kuijpers.com",
+                    "emailMessage/Subject": "⚠️Flow 'Update SharePointlijst Badgeregistratie na akkoord mail ASML' has failed",
+                    "emailMessage/Body": "<p style=\"font-family: Arial, sans-serif; font-size: 14px;\">\n  <strong>Flow Failure Notification: Update SharePointlijst Badgeregistratie na akkoord mail ASML</strong><br><br>\n  The flow failed to update the SharePoint list \"Badge Registration\" due to an error. Below are the details:<br><br>\n  </p><table style=\"border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; font-size: 14px;\">\n    <tbody><tr style=\"background-color: #f2f2f2;\">\n      <th style=\"border: 1px solid #ddd; padding: 8px; text-align: left;\">Field</th>\n      <th style=\"border: 1px solid #ddd; padding: 8px; text-align: left;\">Details</th>\n    </tr>\n    <tr>\n      <td style=\"border: 1px solid #ddd; padding: 8px;\">Flow Name</td>\n      <td style=\"border: 1px solid #ddd; padding: 8px;\">Update SharePointlijst Badgeregistratie na akkoord mail ASML</td>\n    </tr>\n    <tr>\n      <td style=\"border: 1px solid #ddd; padding: 8px;\">Status</td>\n      <td style=\"border: 1px solid #ddd; padding: 8px;\">Failed</td>\n    </tr>\n    <tr>\n      <td style=\"border: 1px solid #ddd; padding: 8px;\">Failure Time</td>\n      <td style=\"border: 1px solid #ddd; padding: 8px;\">@{formatDateTime(utcNow(), 'f', 'nl-NL')}</td>\n    </tr>\n    <tr>\n      <td style=\"border: 1px solid #ddd; padding: 8px;\">Error Message</td>\n      <td style=\"border: 1px solid #ddd; padding: 8px;\">@{coalesce(actions('Catch:_Handle_Update_Errors')?['outputs']?['body']?['error']?['message'], 'Unknown error')}</td>\n    </tr>\n    <tr>\n      <td style=\"border: 1px solid #ddd; padding: 8px;\">Email Subject</td>\n      <td style=\"border: 1px solid #ddd; padding: 8px;\">@{coalesce(triggerOutputs()?['body/Subject'], 'No subject available')}</td>\n    </tr>\n    <tr>\n      <td style=\"border: 1px solid #ddd; padding: 8px;\">Cc Email</td>\n      <td style=\"border: 1px solid #ddd; padding: 8px;\">@{coalesce(first(split(triggerOutputs()?['body/Cc'], ';')), 'No Cc email available')}</td>\n    </tr>\n  </tbody></table><br>\n  <strong>Next Steps:</strong><br>\n  1. Review the flow run details to diagnose the issue: <a href=\"@{outputs('Compose:_Flow_Run_URL')}\">View Flow Run Details</a><br>\n  2. Check the SharePoint list item for the Cc email above.<br>\n  3. Contact the flow owner if further assistance is needed.<br><br>\n  <strong>Note:</strong> This email contains sensitive information. Do not forward without permission.<br><br>\n  Sent by: KlantteamASML@kuijpers.com\n<p></p>",
+                    "emailMessage/From": "KlantteamASML@kuijpers.com",
+                    "emailMessage/Attachments": [
+                      {
+                        "ContentBytes": "@base64(variables('varHTML'))",
+                        "Name": "@concat('debugLog_',\n    substring(replace(coalesce(triggerOutputs()?['body/subject'], 'NoSubject'),'/','-'),0,80),\n    '_',\n    formatDateTime(utcNow(),'yyyyMMdd-HHmmss'),\n    '.html'\n)"
+                      }
+                    ],
+                    "emailMessage/Importance": "High"
+                  },
+                  "host": {
+                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+                    "operationId": "SendEmailV2",
+                    "connectionName": "shared_office365"
+                  }
+                },
+                "runAfter": {
+                  "Compose:_Flow_Run_URL": [
+                    "Succeeded"
+                  ]
+                }
+              },
+              "Compose:_Flow_Run_URL": {
+                "type": "Compose",
+                "description": "Constructs the flow run history URL for failure notifications",
+                "inputs": "https://us.flow.microsoft.com/manage/environments/@{outputs('Compose:_Get_Workflow_Details')?['tags']?['environmentName']}/flows/@{outputs('Compose:_Get_Workflow_Details')?['name']}/runs/@{outputs('Compose:_Get_Workflow_Details')?['run']?['name']}",
+                "runAfter": {
+                  "Compose:_Get_Workflow_Details": [
+                    "Succeeded"
+                  ]
+                }
+              },
+              "Compose:_Get_Workflow_Details": {
+                "type": "Compose",
+                "description": "Retrieves workflow metadata for constructing the flow run history URL",
+                "inputs": "@workflow()"
+              }
+            }
+          },
+          "runAfter": {
+            "Append_to_string:_Finalize_and_close_HTML": [
+              "Succeeded"
+            ]
+          }
+        },
+        "Initialize_variable:_varHtml": {
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "varHtml",
+                "type": "string",
+                "value": "@{concat(\n  '<html><head><style>',\n  'body{font-family:Segoe UI,sans-serif;font-size:14px;}',\n  'table{border-collapse:collapse;width:100%;}',\n  'th,td{border:1px solid #ddd;padding:8px;text-align:left;}',\n  'th{background:#f3f3f3;}',\n  '.success{color:#0B7938;}.failure{color:#D13438;}',\n  '</style></head><body>',\n  '<h2>Badge-flow run – ', formatDateTime(utcNow(),'f','nl-NL'), '</h2>'\n)}\n"
+              }
+            ]
+          },
+          "runAfter": {}
+        },
+        "Compose:_OverallStatus": {
+          "type": "Compose",
+          "inputs": "@if(equals(actions('Scope:_Update_Badge_Registration')?['status'], 'Succeeded'), 'Succeeded', 'Failed')",
+          "runAfter": {
+            "Scope:_Update_Badge_Registration": [
+              "Succeeded",
+              "TimedOut",
+              "Skipped",
+              "Failed"
+            ]
+          }
+        },
+        "Append_to_string:_Finalize_and_close_HTML": {
+          "type": "AppendToStringVariable",
+          "inputs": {
+            "name": "varHtml",
+            "value": "@concat(\r\n    '<h3>Overall result: ',\r\n    outputs('Compose:_OverallStatus'),\r\n    '</h3>','</body></html>'\r\n  )"
+          },
+          "runAfter": {
+            "Compose:_OverallStatus": [
+              "Succeeded"
+            ]
+          }
+        }
+      },
+      "outputs": {}
+    },
+    "templateName": null
+  },
+  "schemaVersion": "1.0.0.0"
+}

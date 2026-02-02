@@ -1,0 +1,3367 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_sharepointonline": {
+        "api": {
+          "name": "shared_sharepointonline"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "scrasml_sharedsharepointonline_ab5d9"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_webcontents": {
+        "api": {
+          "name": "shared_webcontents"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "new_sharedwebcontents_1397a"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_office365": {
+        "api": {
+          "name": "shared_office365"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "new_sharedoffice365_832e5"
+        },
+        "runtimeSource": "embedded"
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        }
+      },
+      "triggers": {
+        "Trigger_DailyUserSync": {
+          "type": "Recurrence",
+          "recurrence": {
+            "frequency": "Day",
+            "interval": 1,
+            "timeZone": "W. Europe Standard Time",
+            "schedule": {
+              "hours": [
+                "2"
+              ],
+              "minutes": [
+                0
+              ]
+            }
+          },
+          "metadata": {
+            "operationMetadataId": "640e1f8b-fe82-4cba-8cce-68b435e22c14"
+          }
+        }
+      },
+      "actions": {
+        "Data_Format_FoundUserData": {
+          "type": "Select",
+          "inputs": {
+            "from": "@variables('varBatchUsers')",
+            "select": {
+              "UPN": "@coalesce(item()?['userPrincipalName'],'')",
+              "DisplayName": "@coalesce(item()?['displayName'],'')",
+              "NameFormatted": "@if(contains(coalesce(item()?['displayName'], ''), ','), concat(trim(split(coalesce(item()?['displayName'], ''), ',')[1]), ' ', trim(split(coalesce(item()?['displayName'], ''), ',')[0])), coalesce(item()?['displayName'], ''))",
+              "Birthday": "@if(equals(item()?['birthday'], '0001-01-01T08:00:00Z'), '', item()?['birthday'])",
+              "BirthdayFormatted": "@if(or(empty(coalesce(item()?['birthday'], '')), equals(item()?['birthday'], '0001-01-01T08:00:00Z')), '',if(greater(length(coalesce(item()?['birthday'], '')), 0), coalesce(formatDateTime(coalesce(item()?['birthday'], ''), 'd MMMM', 'nl-NL'), ''), ''))",
+              "HireDate": "@if(equals(item()?['hireDate'], '0001-01-01T08:00:00Z'), '', item()?['hireDate'])",
+              "HireDateFormatted": "@if(or(empty(coalesce(item()?['hireDate'], '')), equals(item()?['hireDate'], '0001-01-01T08:00:00Z')), '', if(greater(length(coalesce(item()?['hireDate'], '')), 0), coalesce(formatDateTime(coalesce(item()?['hireDate'], ''), 'd MMMM yyyy', 'nl-NL'), ''), ''))"
+            }
+          },
+          "runAfter": {
+            "Scope_Retrieve_Azure_AD_Userdata": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "491aebdb-ecf3-4c86-9eda-7db401006743"
+          }
+        },
+        "Select_Matching_Badgenummers": {
+          "type": "Compose",
+          "inputs": "@intersection(body('Select_SharePointBadges'),body('Select_ExternalBadges'))",
+          "runAfter": {
+            "Select_ExternalBadges": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "0d7bbf8c-2831-4cd3-94ea-013cd984e813"
+          }
+        },
+        "debug_CountTotals": {
+          "type": "Compose",
+          "inputs": "Total Intelex Badgnumbers: @{length(outputs('Select_ExternalBadges')?['body'])}\nTotal SharePoint Badgnumbers: @{length(outputs('Select_SharepointBadges')?['body'])}\nTotal matching badgenummers: @{length(outputs('Select_Matching_Badgenummers'))}\nTotal non-existing badgenummers: @{length(outputs('Select_Non-Existing_Badgenummers')?['body'])}\n",
+          "runAfter": {
+            "Select_Non-Existing_Badgenummers": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "577d379d-f4ed-4f17-9d73-697d2cf81a25"
+          }
+        },
+        "Select_Non-Existing_Badgenummers": {
+          "type": "Query",
+          "inputs": {
+            "from": "@body('Select_SharePointBadges')",
+            "where": "@and(not(contains(body('Select_ExternalBadges'),item())),not(empty(item())))"
+          },
+          "runAfter": {
+            "Select_Matching_Badgenummers": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "3994c1f9-7ed3-4c26-bb81-a3ea64b778af"
+          }
+        },
+        "Select_AzureUPNs": {
+          "type": "Select",
+          "inputs": {
+            "from": "@body('Data_Format_FoundUserData')",
+            "select": "@toLower(trim(item()['UPN']))"
+          },
+          "runAfter": {
+            "Set_variable:_AzureAD": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "7b3c1e2b-082c-4b36-9391-0ccb5f4c3919"
+          }
+        },
+        "Filter_ItemsToMarkRemoved": {
+          "type": "Query",
+          "inputs": {
+            "from": "@variables('SharePointItems')",
+            "where": "@and(\r\n  not(empty(coalesce(item()['MedewerkerKuijpers_Email'], item()['E_x002d_Mail'], ''))),\r\n  not(contains(body('Select_AzureUPNs'), toLower(trim(coalesce(item()['MedewerkerKuijpers_Email'], item()['E_x002d_Mail'], ''))))),\r\n  not(equals(coalesce(item()['userRemoved'], false), true)),\r\n  not(equals(coalesce(item()['Offboarding'], false), true))\r\n)\r\n"
+          },
+          "runAfter": {
+            "Select_AzureUPNs": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "f51cd75d-1547-4cc1-8026-eaa296270944"
+          }
+        },
+        "Scope_ASML_Trainingsdata": {
+          "type": "Scope",
+          "actions": {
+            "Try_to_get_ASML_Trainingsdata_data": {
+              "type": "Scope",
+              "actions": {
+                "Get_latest_ASML_Trainingsdata": {
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "parameters": {
+                      "dataset": "https://mijnkuijpers.sharepoint.com/sites/accountteamASML",
+                      "path": "/Site Beheer/SyncFolder ASML_Download/TR-data.json",
+                      "inferContentType": false
+                    },
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+                      "operationId": "GetFileContentByPath",
+                      "connectionName": "shared_sharepointonline"
+                    }
+                  },
+                  "metadata": {
+                    "operationMetadataId": "d161f19d-6908-4f08-9813-881428463e88"
+                  }
+                },
+                "Convert_Content_to_JSON": {
+                  "type": "Compose",
+                  "inputs": "@json(base64ToString(outputs('Body_Content_Get_Latest_ASML_Trainingsdata')))",
+                  "runAfter": {
+                    "Body_Content_Get_Latest_ASML_Trainingsdata": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "a1a67edf-b442-4292-89ca-cda5322c5c1e"
+                  }
+                },
+                "Create_NewObject_with_all_Trainingsdata": {
+                  "type": "Select",
+                  "inputs": {
+                    "from": "@json(base64ToString(body('Get_latest_ASML_Trainingsdata')['$content']))",
+                    "select": {
+                      "trainingsdata.Naam": "@{coalesce(item()?['Naam'], '')}",
+                      "trainingsdata.Badgenummer": "@{coalesce(item()?['Badgenummer'], '')}",
+                      "trainingsdata.filterSleutel": "@{coalesce(item()?['filterSleutel'], '')}",
+                      "trainingsdata.datumCleanroom": "@{coalesce(item()?['datumCleanroom'], '')}",
+                      "trainingsdata.gemaaktDatumCleanroom": "@{coalesce(item()?['gemaaktDatumCleanroom'], '')}",
+                      "trainingsdata.gemaaktEmailCleanroom": "@{coalesce(item()?['gemaaktEmailCleanroom'], '')}",
+                      "trainingsdata.gemaaktNaamCleanroom": "@{coalesce(item()?['gemaaktNaamCleanroom'], '')}",
+                      "trainingsdata.datumPlenum": "@{coalesce(item()?['datumPlenum'], '')}",
+                      "trainingsdata.gemaaktDatumPlenum": "@{coalesce(item()?['gemaaktDatumPlenum'], '')}",
+                      "trainingsdata.gemaaktEmailPlenum": "@{coalesce(item()?['gemaaktEmailPlenum'], '')}",
+                      "trainingsdata.gemaaktNaamPlenum": "@{coalesce(item()?['gemaaktNaamPlenum'], '')}",
+                      "trainingsdata.toegangPlenum": "@{coalesce(item()?['toegangPlenum'], '')}",
+                      "trainingsdata.tijdSlotPlenum": "@{coalesce(item()?['tijdSlotPlenum'], '')}",
+                      "trainingsdata.datumGasyard": "@{coalesce(item()?['datumGasyard'], '')}",
+                      "trainingsdata.gemaaktDatumGasyard": "@{coalesce(item()?['gemaaktDatumGasyard'], '')}",
+                      "trainingsdata.gemaaktEmailGasyard": "@{coalesce(item()?['gemaaktEmailGasyard'], '')}",
+                      "trainingsdata.gemaaktNaamGasyard": "@{coalesce(item()?['gemaaktNaamGasyard'], '')}",
+                      "trainingsdata.geldigheidGasyard": "@{coalesce(item()?['geldigheidGasyard'], '')}",
+                      "trainingsdata.beschrijvingGasyard": "@{coalesce(item()?['beschrijvingGasyard'], '')}",
+                      "trainingsdata.tijdSlotGasyard": "@{coalesce(item()?['tijdSlotGasyard'], '')}"
+                    }
+                  },
+                  "runAfter": {
+                    "Convert_Content_to_JSON": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "93951bd2-95b6-49a8-b99b-65fe5c6c7584"
+                  }
+                },
+                "Body_Content_Get_Latest_ASML_Trainingsdata": {
+                  "type": "Compose",
+                  "inputs": "@body('Get_latest_ASML_Trainingsdata')['$content']",
+                  "runAfter": {
+                    "Get_latest_ASML_Trainingsdata": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "cd3ec872-5296-4da0-9bdb-5ff888c7d68d"
+                  }
+                }
+              },
+              "metadata": {
+                "operationMetadataId": "f20436f0-ea06-42a7-8982-9531604ec06c"
+              }
+            },
+            "Catch_errors_Scope_ASML_Trainingsdata": {
+              "type": "Scope",
+              "actions": {
+                "Log_errors_Scope_ASML_Trainingsdata": {
+                  "type": "Compose",
+                  "inputs": "@outputs('Try_to_get_ASML_Trainingsdata_data')?['error']",
+                  "metadata": {
+                    "operationMetadataId": "d70f9109-7e94-4481-85b4-22d3a5b2bc1a"
+                  }
+                }
+              },
+              "runAfter": {
+                "Try_to_get_ASML_Trainingsdata_data": [
+                  "Failed"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "0d6ba5f9-27f1-4410-9df0-55c517020a2a"
+              }
+            }
+          },
+          "runAfter": {
+            "debugMode": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "6c470e76-83c9-4b9c-81db-1277e5c06f3d"
+          }
+        },
+        "Scope_Intelex_Badgenummers": {
+          "type": "Scope",
+          "actions": {
+            "Try_to_get_latest_Intelex_data": {
+              "type": "Scope",
+              "actions": {
+                "Intelex_Get_kuijpersEmployees": {
+                  "type": "Http",
+                  "inputs": {
+                    "uri": "https://eu.intelex.com/Login/ASML/api/v2/application/PTW/SysEmployeeEntity",
+                    "method": "GET",
+                    "headers": {
+                      "Authorization": "Apikey 478800b36bd544e29fd86ff69a9ba65a"
+                    },
+                    "queries": {
+                      "$filter": "CompanyName ne null and contains(CompanyName,'Kuijpers')"
+                    }
+                  },
+                  "runtimeConfiguration": {
+                    "paginationPolicy": {
+                      "minimumItemCount": 5000
+                    }
+                  },
+                  "metadata": {
+                    "operationMetadataId": "08369890-aca6-4591-b142-e25d90ea806a"
+                  }
+                },
+                "Create_NewObject_with_Intelex_Kuijpers_Employees": {
+                  "type": "Select",
+                  "inputs": {
+                    "from": "@body('Intelex_Get_kuijpersEmployees')?['value']",
+                    "select": {
+                      "Intelex.EmployeeId": "@coalesce(item()?['Id'], '')",
+                      "Intelex.FullName": "@coalesce(item()?['Name'], '')",
+                      "Intelex.BadgeNumber": "@coalesce(item()?['Number'], '')",
+                      "Intelex.Email": "@coalesce(item()?['Email'], '')",
+                      "Intelex.Company": "@coalesce(item()?['CompanyName'], '')",
+                      "Intelex.FirstName": "@coalesce(item()?['FirstName'], '')",
+                      "Intelex.LastName": "@coalesce(item()?['LastName'], '')",
+                      "Intelex.HireDate": "@coalesce(item()?['DateHired'], '')",
+                      "Intelex.LastUpdated": "@coalesce(item()?['DateModified'], '')"
+                    }
+                  },
+                  "runAfter": {
+                    "Intelex_Get_kuijpersEmployees": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "c21af0e9-6553-4bf3-8ac1-e25e314c7877"
+                  }
+                },
+                "Select_IntelexEmails": {
+                  "type": "Select",
+                  "inputs": {
+                    "from": "@body('Intelex_Get_kuijpersEmployees')?['value']",
+                    "select": "@item()?['Email']"
+                  },
+                  "runAfter": {
+                    "Create_NewObject_with_Intelex_Kuijpers_Employees": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "31643169-1645-472d-b83b-bd39a813f2cc"
+                  }
+                }
+              },
+              "metadata": {
+                "operationMetadataId": "32c82ea8-bfc9-43e2-9da6-3f48f9823a8f"
+              }
+            },
+            "Catch_errors_Scope_Intelex_Badgenummers": {
+              "type": "Scope",
+              "actions": {
+                "Log_errors_Scope_Intelex_Badgenummers": {
+                  "type": "Compose",
+                  "inputs": "@outputs('Try_to_get_latest_Intelex_data')?['error']",
+                  "metadata": {
+                    "operationMetadataId": "f57653f0-e125-461e-969a-046ff2f4dd38"
+                  }
+                }
+              },
+              "runAfter": {
+                "Try_to_get_latest_Intelex_data": [
+                  "Failed"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "cf7915ee-e29d-4765-8cb7-fcbdede5685a"
+              }
+            }
+          },
+          "runAfter": {
+            "debugMode": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "7c5d75dd-9b5e-4faa-8909-8f13af971fa1"
+          }
+        },
+        "Scope_Badgeregistratielijst": {
+          "type": "Scope",
+          "actions": {
+            "Try_to_get_Badgeregistratielijst_data": {
+              "type": "Scope",
+              "actions": {
+                "Send_an_HTTP_request_to_SharePoint": {
+                  "type": "OpenApiConnection",
+                  "description": "_api/web/lists/getbytitle('Secretariaat KVA - Overzicht ASML Badges')/items?$expand=MedewerkerKuijpers&$select={ALL_FIELDS}&$filter=Offboarding eq false&$top=500",
+                  "inputs": {
+                    "parameters": {
+                      "dataset": "https://mijnkuijpers.sharepoint.com/sites/accountteamASML",
+                      "parameters/method": "GET",
+                      "parameters/uri": "_api/web/lists/getbytitle('Secretariaat KVA - Overzicht ASML Badges')/items?$expand=MedewerkerKuijpers&$select=Id,Aangemaakt,Aangepast,badgeApproved,badgeApprovedById,badgeApprovedByStringId,badgeConfirmedMailASML,badgeRejected,badgeRejectedById,badgeRejectedByStringId,badgeRejectedReason,badgeRequestApprovalMail,badgeRequestApprovedMail,badgeRequestConfirmedASML,badgeRequestCreatedBy,badgeRequestCreatedEmail,badgeRequestCreatedFunctie,badgeRequestSendToASML,badgeRequestStartDate,Badgenummer,beschrijvingGasyard,Birthday,Created,datumCleanroom,datumGasyard,datumPlenum,E_x002d_Mail,filterSleutel,Functie,gemaaktDatumCleanroom,gemaaktDatumGasyard,gemaaktDatumPlenum,gemaaktEmailCleanroom,gemaaktEmailGasyard,gemaaktEmailPlenum,gemaaktNaamCleanroom,gemaaktNaamGasyard,gemaaktNaamPlenum,geldigheidGasyard,HireDate,HireDateIntelex,ID,GUID,MailASML,MedewerkerKuijpersId,MedewerkerKuijpersStringId,MedewerkerKuijpers/Id,MedewerkerKuijpers/Title,MedewerkerKuijpers/FirstName,MedewerkerKuijpers/LastName,MedewerkerKuijpers/Department,MedewerkerKuijpers/JobTitle,MedewerkerKuijpers/EMail,MedewerkerKuijpers/Name,MedewerkerKuijpers/UserName,MedewerkerKuijpers/SipAddress,MedewerkerKuijpers/Office,MedewerkerKuijpers/WorkPhone,MedewerkerKuijpers/MobilePhone,MedewerkerKuijpers/Created,MedewerkerKuijpers/Modified,MedewerkerKuijpers/OData__UIVersionString,Modified,Naam,Offboarding,OffboardingHistoryTimestamps,StartDate,Status,tijdSlotGasyard,tijdSlotPlenum,Title,toegangPlenum,UserID,userRemoved,OData__UIVersionString&$top=500",
+                      "parameters/headers": {
+                        "Accept": "application/json;odata=verbose"
+                      }
+                    },
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+                      "operationId": "HttpRequest",
+                      "connectionName": "shared_sharepointonline"
+                    }
+                  },
+                  "metadata": {
+                    "operationMetadataId": "7b54bec8-1d71-40fb-8da7-d6ec4de2846e"
+                  }
+                },
+                "Create_NewObject_with_all_possible_keys_in_it": {
+                  "type": "Select",
+                  "inputs": {
+                    "from": "@body('Send_an_HTTP_request_to_SharePoint')?['d/results']",
+                    "select": {
+                      "Aangemaakt": "@coalesce(item()?['Aangemaakt'], '')",
+                      "Aangepast": "@coalesce(item()?['Aangepast'], '')",
+                      "Badgenummer": "@coalesce(item()?['Badgenummer'], '')",
+                      "Birthday": "@coalesce(item()?['Birthday'], '')",
+                      "Created": "@coalesce(item()?['Created'], '')",
+                      "DisplayName": "@coalesce(item()?['MedewerkerKuijpers']?['Title'], '')",
+                      "DisplayNameFormatted": "@if(not(empty(item()?['Naam'])),item()?['Naam'],if(contains(coalesce(item()?['MedewerkerKuijpers']?['Title'],''),','),concat(trim(split(coalesce(item()?['MedewerkerKuijpers']?['Title'],''),',')[1]),' ',trim(split(coalesce(item()?['MedewerkerKuijpers']?['Title'],''),',')[0])),coalesce(item()?['MedewerkerKuijpers']?['Title'],'')))",
+                      "E_x002d_Mail": "@coalesce(item()?['E_x002d_Mail'], '')",
+                      "FullPath": "@{coalesce(item()?['{FullPath}'], '')}",
+                      "Functie": "@coalesce(item()?['Functie'], '')",
+                      "GUID": "@coalesce(item()?['GUID'], '')",
+                      "HireDate": "@coalesce(item()?['HireDate'], '')",
+                      "HireDateIntelex": "@coalesce(item()?['HireDateIntelex'], '')",
+                      "ID": "@coalesce(item()?['ID'], '')",
+                      "Identifier": "@{coalesce(item()?['{Identifier}'], '')}",
+                      "ItemInternalId": "@coalesce(item()?['ItemInternalId'], '')",
+                      "Link": "@{coalesce(item()?['{Link}'], '')}",
+                      "MailASML": "@coalesce(item()?['MailASML'], '')",
+                      "MedewerkerKuijpersId": "@coalesce(item()?['MedewerkerKuijpersId'], '')",
+                      "MedewerkerKuijpers_Created": "@coalesce(item()?['MedewerkerKuijpers']?['Created'], '')",
+                      "MedewerkerKuijpers_Department": "@coalesce(item()?['MedewerkerKuijpers']?['Department'], '')",
+                      "MedewerkerKuijpers_DisplayName": "@coalesce(item()?['MedewerkerKuijpers']?['DisplayName'], '')",
+                      "MedewerkerKuijpers_Email": "@coalesce(item()?['MedewerkerKuijpers']?['EMail'], '')",
+                      "MedewerkerKuijpers_FirstName": "@coalesce(item()?['MedewerkerKuijpers']?['FirstName'], '')",
+                      "MedewerkerKuijpers_Id": "@coalesce(item()?['MedewerkerKuijpers']?['Id'], '')",
+                      "MedewerkerKuijpers_JobTitle": "@coalesce(item()?['MedewerkerKuijpers']?['JobTitle'], '')",
+                      "MedewerkerKuijpers_LastName": "@coalesce(item()?['MedewerkerKuijpers']?['LastName'], '')",
+                      "MedewerkerKuijpers_MobilePhone": "@coalesce(item()?['MedewerkerKuijpers']?['MobilePhone'], '')",
+                      "MedewerkerKuijpers_Modified": "@coalesce(item()?['MedewerkerKuijpers']?['Modified'], '')",
+                      "MedewerkerKuijpers_Name": "@coalesce(item()?['MedewerkerKuijpers']?['Name'], '')",
+                      "MedewerkerKuijpers_OData__UIVersionString": "@coalesce(item()?['MedewerkerKuijpers']?['OData__UIVersionString'], '')",
+                      "MedewerkerKuijpers_Office": "@coalesce(item()?['MedewerkerKuijpers']?['Office'], '')",
+                      "MedewerkerKuijpers_SipAddress": "@coalesce(item()?['MedewerkerKuijpers']?['SipAddress'], '')",
+                      "MedewerkerKuijpers_Title": "@coalesce(item()?['MedewerkerKuijpers']?['Title'], '')",
+                      "MedewerkerKuijpers_UserName": "@coalesce(item()?['MedewerkerKuijpers']?['UserName'], '')",
+                      "MedewerkerKuijpers_WorkPhone": "@coalesce(item()?['MedewerkerKuijpers']?['WorkPhone'], '')",
+                      "MedewerkerKuijpers_Claim": "@coalesce(item()?['MedewerkerKuijpers']?['Name'], '')",
+                      "MedewerkerKuijpersStringId": "@coalesce(item()?['MedewerkerKuijpersStringId'], '')",
+                      "Modified": "@coalesce(item()?['Modified'], '')",
+                      "Naam": "@coalesce(item()?['Naam'], '')",
+                      "Offboarding": "@coalesce(item()?['Offboarding'], '')",
+                      "OffboardingHistoryTimestamps": "@coalesce(item()?['OffboardingHistoryTimestamps'], '')",
+                      "OData__UIVersionString": "@coalesce(item()?['OData__UIVersionString'], '')",
+                      "Path": "@{coalesce(item()?['{Path}'], '')}",
+                      "StartDate": "@coalesce(item()?['StartDate'], '')",
+                      "Status": "@coalesce(item()?['Status'], '')",
+                      "badgeApproved": "@coalesce(item()?['badgeApproved'], '')",
+                      "badgeApprovedById": "@coalesce(item()?['badgeApprovedById'], '')",
+                      "badgeApprovedByStringId": "@coalesce(item()?['badgeApprovedByStringId'], '')",
+                      "badgeConfirmedMailASML": "@coalesce(item()?['badgeConfirmedMailASML'], '')",
+                      "badgeRejected": "@coalesce(item()?['badgeRejected'], '')",
+                      "badgeRejectedById": "@coalesce(item()?['badgeRejectedById'], '')",
+                      "badgeRejectedByStringId": "@coalesce(item()?['badgeRejectedByStringId'], '')",
+                      "badgeRejectedReason": "@coalesce(item()?['badgeRejectedReason'], '')",
+                      "badgeRequestApprovalMail": "@coalesce(item()?['badgeRequestApprovalMail'], '')",
+                      "badgeRequestApprovedMail": "@coalesce(item()?['badgeRequestApprovedMail'], '')",
+                      "badgeRequestConfirmedASML": "@coalesce(item()?['badgeRequestConfirmedASML'], '')",
+                      "badgeRequestCreatedBy": "@coalesce(item()?['badgeRequestCreatedBy'], '')",
+                      "badgeRequestCreatedEmail": "@coalesce(item()?['badgeRequestCreatedEmail'], '')",
+                      "badgeRequestCreatedFunctie": "@coalesce(item()?['badgeRequestCreatedFunctie'], '')",
+                      "badgeRequestSendToASML": "@coalesce(item()?['badgeRequestSendToASML'], '')",
+                      "badgeRequestStartDate": "@coalesce(item()?['badgeRequestStartDate'], '')",
+                      "beschrijvingGasyard": "@coalesce(item()?['beschrijvingGasyard'], '')",
+                      "datumCleanroom": "@coalesce(item()?['datumCleanroom'], '')",
+                      "datumGasyard": "@coalesce(item()?['datumGasyard'], '')",
+                      "datumPlenum": "@coalesce(item()?['datumPlenum'], '')",
+                      "filterSleutel": "@coalesce(item()?['filterSleutel'], '')",
+                      "gemaaktDatumCleanroom": "@coalesce(item()?['gemaaktDatumCleanroom'], '')",
+                      "gemaaktDatumGasyard": "@coalesce(item()?['gemaaktDatumGasyard'], '')",
+                      "gemaaktDatumPlenum": "@coalesce(item()?['gemaaktDatumPlenum'], '')",
+                      "gemaaktEmailCleanroom": "@coalesce(item()?['gemaaktEmailCleanroom'], '')",
+                      "gemaaktEmailGasyard": "@coalesce(item()?['gemaaktEmailGasyard'], '')",
+                      "gemaaktEmailPlenum": "@coalesce(item()?['gemaaktEmailPlenum'], '')",
+                      "gemaaktNaamCleanroom": "@coalesce(item()?['gemaaktNaamCleanroom'], '')",
+                      "gemaaktNaamGasyard": "@coalesce(item()?['gemaaktNaamGasyard'], '')",
+                      "gemaaktNaamPlenum": "@coalesce(item()?['gemaaktNaamPlenum'], '')",
+                      "geldigheidGasyard": "@coalesce(item()?['geldigheidGasyard'], '')",
+                      "tijdSlotGasyard": "@coalesce(item()?['tijdSlotGasyard'], '')",
+                      "tijdSlotPlenum": "@coalesce(item()?['tijdSlotPlenum'], '')",
+                      "Title": "@coalesce(item()?['Title'], '')",
+                      "toegangPlenum": "@coalesce(item()?['toegangPlenum'], '')",
+                      "UserID": "@coalesce(item()?['UserID'], '')",
+                      "userPrincipalName": "@replace(coalesce(item()?['MedewerkerKuijpers']?['Name'], ''), 'i:0#.f|membership|', '')",
+                      "userRemoved": "@coalesce(item()?['userRemoved'], false)",
+                      "VersionNumber": "@{coalesce(item()?['{VersionNumber}'], '')}"
+                    }
+                  },
+                  "runAfter": {
+                    "Send_an_HTTP_request_to_SharePoint": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "ca41c31a-a7ec-41fc-892c-f1778c190cfe"
+                  }
+                }
+              },
+              "metadata": {
+                "operationMetadataId": "45efc4a4-bbf0-41fd-9585-e4354d4dbcd9"
+              }
+            },
+            "Catch_errors_Scope_Badgeregistratielijst": {
+              "type": "Scope",
+              "actions": {
+                "Log_errors_Scope_Badgeregistratielijst": {
+                  "type": "Compose",
+                  "inputs": "@outputs('Try_to_get_Badgeregistratielijst_data')?['error']",
+                  "metadata": {
+                    "operationMetadataId": "d5f87b27-e702-40e7-84b7-71a780f562e3"
+                  }
+                }
+              },
+              "runAfter": {
+                "Try_to_get_Badgeregistratielijst_data": [
+                  "Failed"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "d9b6b937-34ff-448c-a826-ae64e94a4ec4"
+              }
+            }
+          },
+          "runAfter": {
+            "debugMode": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "88c3d3ed-c225-4d0f-830f-34bc067e5032"
+          }
+        },
+        "Initialize_ProcessedUsers_Array": {
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "varUsers",
+                "type": "array",
+                "value": []
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_AzureAD": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "9e1e3bc4-d279-4ff3-a764-cd4d5ad99526"
+          }
+        },
+        "Initialize_SkippedUsers_Array": {
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "varSkippedUsers",
+                "type": "array",
+                "value": []
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_ProcessedUsers_Array": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "7656a1de-9d7a-4190-92e9-84b878c77fe2"
+          }
+        },
+        "Initialize_BatchResults_Array": {
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "varBatchUsers",
+                "type": "array",
+                "value": []
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_PairedData_Array": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "309f663f-88e8-449e-904c-c328c92d3d84"
+          }
+        },
+        "Scope_Retrieve_Azure_AD_Userdata": {
+          "type": "Scope",
+          "actions": {
+            "Catch_errors_Scope_Retrieve_Azure_AD_Userdata": {
+              "type": "Scope",
+              "actions": {
+                "Create_HTML_formatted_scope_Retrieve_Azure_AD_Userdata": {
+                  "type": "Compose",
+                  "inputs": "<table border=\\\"1\\\" cellpadding=\\\"5\\\" cellspacing=\\\"0\\\" style=\\\"border-collapse:collapse;\\\">\n<tr><th>Scope 'Retrieve Azure AD Userdata' Execution Status</th><td style=\\\"color: @{if(equals(outputs('Try_to_Retrieve_Azure_AD_Userdata')?['status'], 'Succeeded'), 'green', 'red')};\\\">@{coalesce(outputs('Try_to_Retrieve_Azure_AD_Userdata')?['status'], if(empty(outputs('Try_to_Retrieve_Azure_AD_Userdata')?['error']), 'Succeeded', 'Failed'))}</td></tr>\n<tr><th>Azure AD Users</th><td>@{if(equals(outputs('Try_to_Retrieve_Azure_AD_Userdata')?['status'], 'Succeeded'), concat('Retrieved ', string(length(variables('AzureAD'))), ' user records'), 'Retrieval failed')}</td></tr>\n<tr><th>Email Batches</th><td>@{if(equals(outputs('Try_to_Retrieve_Azure_AD_Userdata')?['status'], 'Succeeded'), string(length(coalesce(outputs('Data_Compose_EmailBatches'), createArray()))), 'N/A')}</td></tr>\n<tr><th>Last Update</th><td>@{utcNow()}</td></tr>\n@{if(not(empty(outputs('Try_to_Retrieve_Azure_AD_Userdata')?['error'])), concat('<tr><th>Error Details</th><td><pre>', string(outputs('Try_to_Retrieve_Azure_AD_Userdata')?['error']), '</pre></td></tr>'), '')}\n</table>",
+                  "metadata": {
+                    "operationMetadataId": "edba0304-272d-48c8-ab4f-8d05ed4b72c2"
+                  }
+                }
+              },
+              "runAfter": {
+                "Try_to_Retrieve_Azure_AD_Userdata": [
+                  "Succeeded",
+                  "Failed",
+                  "Skipped",
+                  "TimedOut"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "fb39c2da-0761-4da8-bf06-e14275a63bd2"
+              }
+            },
+            "Try_to_Retrieve_Azure_AD_Userdata": {
+              "type": "Scope",
+              "actions": {
+                "Loop_ForEach_EmailBatch": {
+                  "type": "Foreach",
+                  "foreach": "@coalesce(json(outputs('Data_Compose_EmailBatches')), createArray())\r\n",
+                  "actions": {
+                    "Select_–_Create_Batch_Requests": {
+                      "type": "Select",
+                      "inputs": {
+                        "from": "@items('Loop_ForEach_EmailBatch')",
+                        "select": {
+                          "id": "@item()",
+                          "method": "GET",
+                          "url": "@concat('/users/', item(), '?$select=id,displayName,userPrincipalName,birthday,hireDate')",
+                          "email": "@item()"
+                        }
+                      },
+                      "metadata": {
+                        "operationMetadataId": "55046b58-5d25-4f6e-8393-6c0cd0d383de"
+                      }
+                    },
+                    "Compose_–_Batch_Body": {
+                      "type": "Compose",
+                      "inputs": {
+                        "requests": "@body('Select_–_Create_Batch_Requests')"
+                      },
+                      "runAfter": {
+                        "Select_–_Create_Batch_Requests": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "a1e177d6-91c4-4687-aa0e-6d2bf6709dd7"
+                      }
+                    },
+                    "GraphAPI_Get_UserProfiles_Batch": {
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "parameters": {
+                          "request/method": "POST",
+                          "request/url": "/v1.0/$batch",
+                          "request/headers": {
+                            "Content-Type": "application/json"
+                          },
+                          "request/body": "@outputs('Compose_–_Batch_Body')"
+                        },
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_webcontents",
+                          "operationId": "InvokeHttp",
+                          "connectionName": "shared_webcontents"
+                        }
+                      },
+                      "runAfter": {
+                        "Compose_–_Batch_Body": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "7c1f5d0c-75e4-4aff-86e3-c10946ebc362"
+                      }
+                    },
+                    "Filter_Successful_AzureAD_Responses": {
+                      "type": "Query",
+                      "inputs": {
+                        "from": "@body('GraphAPI_Get_UserProfiles_Batch')?['responses']",
+                        "where": "@equals(item()?['status'], 200)"
+                      },
+                      "runAfter": {
+                        "GraphAPI_Get_UserProfiles_Batch": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "filter-successful-responses"
+                      }
+                    },
+                    "Filter_Failed_AzureAD_Responses": {
+                      "type": "Query",
+                      "inputs": {
+                        "from": "@body('GraphAPI_Get_UserProfiles_Batch')?['responses']",
+                        "where": "@not(equals(item()?['status'], 200))"
+                      },
+                      "runAfter": {
+                        "GraphAPI_Get_UserProfiles_Batch": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "filter-failed-responses"
+                      }
+                    },
+                    "Append_Failed_Lookups_To_SkippedUsers": {
+                      "type": "Foreach",
+                      "foreach": "@body('Filter_Failed_AzureAD_Responses')",
+                      "actions": {
+                        "Append_Failed_User_To_Skipped": {
+                          "type": "AppendToArrayVariable",
+                          "inputs": {
+                            "name": "varSkippedUsers",
+                            "value": {
+                              "ID": "",
+                              "Name": "@{items('Append_Failed_Lookups_To_SkippedUsers')?['id']}",
+                              "Email": "@{items('Append_Failed_Lookups_To_SkippedUsers')?['id']}",
+                              "Reason": "Not found in Azure AD (404)"
+                            }
+                          },
+                          "metadata": {
+                            "operationMetadataId": "append-failed-user"
+                          }
+                        }
+                      },
+                      "runAfter": {
+                        "Filter_Failed_AzureAD_Responses": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "append-failed-lookups-loop"
+                      }
+                    },
+                    "Data_Select_ProfileDataFromBatch": {
+                      "type": "Select",
+                      "inputs": {
+                        "from": "@body('Filter_Successful_AzureAD_Responses')",
+                        "select": {
+                          "medewerkerKuijpers.email": "@{item()?['id']}",
+                          "displayName": "@{coalesce(item()?['body']?['displayName'], null)}",
+                          "userPrincipalName": "@{coalesce(item()?['body']?['userPrincipalName'], null)}",
+                          "birthday": "@{coalesce(item()?['body']?['birthday'], null)}",
+                          "hireDate": "@{coalesce(item()?['body']?['hireDate'], null)}"
+                        }
+                      },
+                      "runAfter": {
+                        "Filter_Successful_AzureAD_Responses": [
+                          "Succeeded"
+                        ],
+                        "Append_Failed_Lookups_To_SkippedUsers": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "939d26ea-3d91-4250-aaff-29dc27544f5b"
+                      }
+                    },
+                    "Loop_AppendResults_To_BatchArray": {
+                      "type": "Foreach",
+                      "foreach": "@body('Data_Select_ProfileDataFromBatch')",
+                      "actions": {
+                        "Append_Results_To_BatchArray": {
+                          "type": "AppendToArrayVariable",
+                          "inputs": {
+                            "name": "varBatchUsers",
+                            "value": "@items('Loop_AppendResults_To_BatchArray')"
+                          },
+                          "metadata": {
+                            "operationMetadataId": "7bb8f00e-7042-487d-8d30-9b2ca2774ccc"
+                          }
+                        }
+                      },
+                      "runAfter": {
+                        "Data_Select_ProfileDataFromBatch": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "f9b1707e-4111-4fae-8a1a-6c2d08e73e63"
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "Data_Compose_EmailBatches": [
+                      "Succeeded"
+                    ]
+                  },
+                  "runtimeConfiguration": {
+                    "concurrency": {
+                      "repetitions": 1
+                    }
+                  },
+                  "metadata": {
+                    "operationMetadataId": "018c7555-1c07-42b4-8a15-26461a8c7d04"
+                  }
+                },
+                "Data_Compose_EmailBatches": {
+                  "type": "Compose",
+                  "inputs": "@{chunk(outputs('Remove_Duplicate_EmailAdresses'), 20)}\n",
+                  "runAfter": {
+                    "Remove_Duplicate_EmailAdresses": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "153ba932-f480-42f6-8070-f1d5a09f97af"
+                  }
+                },
+                "Remove_Duplicate_EmailAdresses": {
+                  "type": "Compose",
+                  "inputs": "@union(body('Select:_MedewerkerKuijpers.Email'), body('Select:_E-mail.EndsWithKuijpers'))",
+                  "runAfter": {
+                    "Select:_E-mail.EndsWithKuijpers": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "baa78f02-3846-42da-b2ac-8159ccda4b18"
+                  }
+                },
+                "Select:_MedewerkerKuijpers.Email": {
+                  "type": "Select",
+                  "inputs": {
+                    "from": "@body('Filter_MedewerkerKuijpers_and_EmailEndsWithKuijpers')",
+                    "select": "@if(not(empty(item()?['MedewerkerKuijpers_Email'])), item()?['MedewerkerKuijpers_Email'], item()?['E_x002d_Mail'])"
+                  },
+                  "runAfter": {
+                    "Filter_MedewerkerKuijpers_and_EmailEndsWithKuijpers": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "e17b76d2-1134-4547-a570-5fd9518f229d"
+                  }
+                },
+                "Filter_MedewerkerKuijpers_and_EmailEndsWithKuijpers": {
+                  "type": "Query",
+                  "inputs": {
+                    "from": "@variables('SharePointItems')",
+                    "where": "@and(\r\n  or(\r\n    not(empty(item()?['MedewerkerKuijpers_Email'])),\r\n    endsWith(item()?['E_x002d_Mail'], '@kuijpers.com')\r\n  ),\r\n  not(equals(item()?['Offboarding'], true))\r\n)\r\n"
+                  },
+                  "metadata": {
+                    "operationMetadataId": "d17c3c3a-ed71-4d20-9bee-6a63181bb7ce"
+                  }
+                },
+                "Select:_E-mail.EndsWithKuijpers": {
+                  "type": "Select",
+                  "inputs": {
+                    "from": "@body('Filter_MedewerkerKuijpers_and_EmailEndsWithKuijpers')",
+                    "select": "@if(not(empty(item()?['MedewerkerKuijpers_Email'])), item()?['MedewerkerKuijpers_Email'], item()?['E_x002d_Mail'])"
+                  },
+                  "runAfter": {
+                    "Select:_MedewerkerKuijpers.Email": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "e17b76d2-1134-4547-a570-5fd9518f229d"
+                  }
+                }
+              },
+              "metadata": {
+                "operationMetadataId": "63e937e6-54a3-4d4d-82ac-887466cc7856"
+              }
+            }
+          },
+          "runAfter": {
+            "debug_CountTotals": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "a83c324f-8668-4d8d-ad44-c285701e3e91"
+          }
+        },
+        "Set_variable:_AzureAD": {
+          "type": "SetVariable",
+          "inputs": {
+            "name": "AzureAD",
+            "value": "@body('Data_Format_FoundUserData')"
+          },
+          "runAfter": {
+            "Data_Format_FoundUserData": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "cc448abb-03a7-4cf5-9a82-8cc4ff028d35"
+          }
+        },
+        "Load_TR_Data_JSON": {
+          "type": "OpenApiConnection",
+          "inputs": {
+            "parameters": {
+              "dataset": "https://mijnkuijpers.sharepoint.com/sites/accountteamASML",
+              "parameters/method": "GET",
+              "parameters/uri": "_api/web/GetFileByServerRelativeUrl('/sites/accountteamASML/Site Beheer/SyncFolder ASML_Download/TR-data.json')/$value",
+              "parameters/headers": {
+                "Accept": "application/json"
+              }
+            },
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+              "operationId": "HttpRequest",
+              "connectionName": "shared_sharepointonline"
+            }
+          },
+          "runAfter": {
+            "Set_variable:_AzureAD": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "load-tr-data-json"
+          }
+        },
+        "Parse_TR_Data_JSON": {
+          "type": "ParseJson",
+          "inputs": {
+            "content": "@outputs('Convert_Base64_Data_to_String')",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "Naam": {
+                    "type": "string"
+                  },
+                  "Badgenummer": {
+                    "type": "string"
+                  },
+                  "filterSleutel": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "runAfter": {
+            "Convert_Base64_Data_to_String": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "parse-tr-data-json"
+          }
+        },
+        "Set_varTRData": {
+          "type": "SetVariable",
+          "inputs": {
+            "name": "varTRData",
+            "value": "@body('Parse_TR_Data_JSON')"
+          },
+          "runAfter": {
+            "Parse_TR_Data_JSON": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "set-tr-data-variable"
+          }
+        },
+        "Scope_Update_Badgenummers": {
+          "type": "Scope",
+          "actions": {
+            "Try_to_Update_Badgenummers": {
+              "type": "Scope",
+              "actions": {
+                "Loop_for_each_SharePointItem_to_Update_Badgenummers": {
+                  "type": "Foreach",
+                  "foreach": "@variables('SharePointItems')",
+                  "actions": {
+                    "Condition_Skip_Empty_Naam": {
+                      "type": "If",
+                      "expression": "@empty(trim(items('Loop_for_each_SharePointItem_to_Update_Badgenummers')?['Naam']))",
+                      "actions": {
+                        "Append_to_Skipped_Naam_Empty": {
+                          "type": "AppendToArrayVariable",
+                          "inputs": {
+                            "name": "varSkippedUsers",
+                            "value": {
+                              "ID": "@items('Loop_for_each_SharePointItem_to_Update_Badgenummers')?['ID']",
+                              "Reason": "Naam empty"
+                            }
+                          },
+                          "metadata": {
+                            "operationMetadataId": "1dca9bc0-f14d-4018-8b59-ff5fc83a78e9"
+                          }
+                        },
+                        "Increment_Skipped_Empty_Naam_Count": {
+                          "type": "IncrementVariable",
+                          "inputs": {
+                            "name": "varSkippedEmptyNaamCount",
+                            "value": 1
+                          },
+                          "runAfter": {
+                            "Append_to_Skipped_Naam_Empty": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "d4e5f6a7-b8c9-0123-def0-456789012345"
+                          }
+                        }
+                      },
+                      "else": {
+                        "actions": {
+                          "Filter:_Intelex": {
+                            "type": "Query",
+                            "inputs": {
+                              "from": "@variables('Intelex')",
+                              "where": "@or(equals(trim(toLower(item()?['Intelex.FullName'])), trim(toLower(items('Loop_for_each_SharePointItem_to_Update_Badgenummers')?['DisplayNameFormatted']))), equals(trim(toLower(item()?['Intelex.Email'])), trim(toLower(items('Loop_for_each_SharePointItem_to_Update_Badgenummers')?['E_x002d_Mail']))))"
+                            },
+                            "metadata": {
+                              "operationMetadataId": "130722eb-3602-4ccb-aa7e-feab586b0ef3"
+                            }
+                          },
+                          "Condition_Cache_Hit_or_Miss": {
+                            "type": "If",
+                            "expression": "@greater(length(body('Filter:_Intelex')), 0)",
+                            "actions": {
+                              "Increment_Cache_Hits_Count": {
+                                "type": "IncrementVariable",
+                                "inputs": {
+                                  "name": "varCacheHitsCount",
+                                  "value": 1
+                                },
+                                "metadata": {
+                                  "operationMetadataId": "e5f6a7b8-c9d0-1234-ef01-567890123456"
+                                }
+                              }
+                            },
+                            "else": {
+                              "actions": {
+                                "Increment_Cache_Misses_Count": {
+                                  "type": "IncrementVariable",
+                                  "inputs": {
+                                    "name": "varCacheMissesCount",
+                                    "value": 1
+                                  },
+                                  "metadata": {
+                                    "operationMetadataId": "f6a7b8c9-d0e1-2345-f012-678901234567"
+                                  }
+                                }
+                              }
+                            },
+                            "runAfter": {
+                              "Filter:_Intelex": [
+                                "Succeeded"
+                              ]
+                            },
+                            "metadata": {
+                              "operationMetadataId": "36e56989-92dd-40d6-8d19-b5cde443f893"
+                            }
+                          },
+                          "Filter_TR_Data_By_Badge": {
+                            "type": "Query",
+                            "inputs": {
+                              "from": "@variables('varTRData')",
+                              "where": "@equals(item()?['Badgenummer'], body('Filter:_Intelex')[0]?['Intelex.BadgeNumber'])"
+                            },
+                            "runAfter": {
+                              "Condition_Cache_Hit_or_Miss": [
+                                "Succeeded"
+                              ]
+                            },
+                            "metadata": {
+                              "operationMetadataId": "filter-tr-data-by-badge"
+                            }
+                          },
+                          "Validate_Required_Fields_Badgenummers": {
+                            "type": "If",
+                            "expression": {
+                              "and": [
+                                {
+                                  "greater": [
+                                    "@length(body('Filter:_Intelex'))",
+                                    0
+                                  ]
+                                },
+                                {
+                                  "or": [
+                                    {
+                                      "not": {
+                                        "equals": [
+                                          "@string(body('Filter:_Intelex')[0]?['Intelex.BadgeNumber'])",
+                                          "@string(items('Loop_for_each_SharePointItem_to_Update_Badgenummers')?['Badgenummer'])"
+                                        ]
+                                      }
+                                    },
+                                    {
+                                      "not": {
+                                        "equals": [
+                                          "@string(body('Filter:_Intelex')[0]?['Intelex.Email'])",
+                                          "@string(items('Loop_for_each_SharePointItem_to_Update_Badgenummers')?['MailASML'])"
+                                        ]
+                                      }
+                                    },
+                                    {
+                                      "not": {
+                                        "equals": [
+                                          "@if(greater(length(body('Filter_TR_Data_By_Badge')), 0), body('Filter_TR_Data_By_Badge')[0]?['filterSleutel'], 'NA')",
+                                          "@string(items('Loop_for_each_SharePointItem_to_Update_Badgenummers')?['filterSleutel'])"
+                                        ]
+                                      }
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            "actions": {
+                              "Append_to:_BatchUpdateBadgenummers": {
+                                "type": "AppendToArrayVariable",
+                                "inputs": {
+                                  "name": "varBatchUpdateBadgenummers",
+                                  "value": {
+                                    "ID": "@{items('Loop_for_each_SharePointItem_to_Update_Badgenummers')?['ID']}",
+                                    "Badgenummer": "@{coalesce(body('Filter:_Intelex')[0]?['Intelex.BadgeNumber'], '')}",
+                                    "MailASML": "@{if(endsWith(toLower(body('Filter:_Intelex')[0]?['Intelex.Email']),'asml.com'),string(body('Filter:_Intelex')[0]?['Intelex.Email']),null)}",
+                                    "filterSleutel": "@{if(greater(length(body('Filter_TR_Data_By_Badge')), 0), body('Filter_TR_Data_By_Badge')[0]?['filterSleutel'], 'NA')}"
+                                  }
+                                },
+                                "metadata": {
+                                  "operationMetadataId": "bf264819-bc1e-436b-9a44-02eefde36a61"
+                                }
+                              },
+                              "Append_to_array_variable": {
+                                "type": "AppendToArrayVariable",
+                                "inputs": {
+                                  "name": "varSuccessfulUpdates",
+                                  "value": {
+                                    "ID": "@{items('Loop_for_each_SharePointItem_to_Update_Badgenummers')?['ID']}",
+                                    "Naam": "@{items('Loop_for_each_SharePointItem_to_Update_Badgenummers')?['DisplayNameFormatted']}",
+                                    "Email": "@{coalesce(items('Loop_for_each_SharePointItem_to_Update_Badgenummers')?['E_x002d_Mail'], items('Loop_for_each_SharePointItem_to_Update_Badgenummers')?['MedewerkerKuijpers_Email'])}",
+                                    "UPN": "@{body('Filter:_Intelex')[0]?['Intelex.Email']}",
+                                    "Changes": "@{concat(if(not(equals(coalesce(items('Loop_for_each_SharePointItem_to_Update_Badgenummers')?['Badgenummer'], ''), coalesce(body('Filter:_Intelex')[0]?['Intelex.BadgeNumber'], ''))), concat('Badgenummer: ', coalesce(items('Loop_for_each_SharePointItem_to_Update_Badgenummers')?['Badgenummer'], 'empty'), ' → ', coalesce(body('Filter:_Intelex')[0]?['Intelex.BadgeNumber'], 'empty'), '; '), ''), if(not(equals(coalesce(items('Loop_for_each_SharePointItem_to_Update_Badgenummers')?['MailASML'], ''), coalesce(if(endsWith(toLower(body('Filter:_Intelex')[0]?['Intelex.Email']), 'asml.com'), body('Filter:_Intelex')[0]?['Intelex.Email'], null), ''))), concat('MailASML: ', coalesce(items('Loop_for_each_SharePointItem_to_Update_Badgenummers')?['MailASML'], 'empty'), ' → ', coalesce(if(endsWith(toLower(body('Filter:_Intelex')[0]?['Intelex.Email']), 'asml.com'), body('Filter:_Intelex')[0]?['Intelex.Email'], null), 'empty')), ''))}",
+                                    "Timestamp": "@{utcNow()}"
+                                  }
+                                },
+                                "runAfter": {
+                                  "Append_to:_BatchUpdateBadgenummers": [
+                                    "Succeeded"
+                                  ]
+                                },
+                                "metadata": {
+                                  "operationMetadataId": "bc400f62-cb42-4198-93d4-f3d8c0a561b8"
+                                }
+                              }
+                            },
+                            "else": {
+                              "actions": {
+                                "Log_Validation_Failure_Fields_Badgenummers": {
+                                  "type": "Compose",
+                                  "inputs": "@concat('Validation failed for item ID: ', \r\n  coalesce(items('Loop_for_each_SharePointItem_to_Update_Badgenummers')?['ID'], 'Unknown'), \r\n  ' - Missing required fields')",
+                                  "metadata": {
+                                    "operationMetadataId": "6dba017a-248a-44a2-a386-c4736bb7f080"
+                                  }
+                                }
+                              }
+                            },
+                            "runAfter": {
+                              "Filter_TR_Data_By_Badge": [
+                                "Succeeded"
+                              ]
+                            },
+                            "metadata": {
+                              "operationMetadataId": "4b6c8991-b4ed-46c7-a848-b9c189395668"
+                            }
+                          },
+                          "Filter_Intelex_By_Name": {
+                            "type": "Query",
+                            "inputs": {
+                              "from": "@variables('Intelex')",
+                              "where": "@contains(toLower(item()?['Intelex.FullName']), toLower(items('Loop_for_each_SharePointItem_to_Update_Badgenummers')?['DisplayNameFormatted']))"
+                            },
+                            "metadata": {
+                              "operationMetadataId": "20a3fd14-460d-4716-91b0-ee6877591aec"
+                            }
+                          },
+                          "Compose": {
+                            "type": "Compose",
+                            "inputs": "Filtered Intelex by name: @{outputs('Filter_Intelex_By_Name')}",
+                            "runAfter": {
+                              "Filter_Intelex_By_Name": [
+                                "Succeeded"
+                              ]
+                            },
+                            "metadata": {
+                              "operationMetadataId": "d3803eb1-ae5c-4453-a1e3-bde645df958a"
+                            }
+                          }
+                        }
+                      },
+                      "metadata": {
+                        "operationMetadataId": "f0a5ee64-60ae-4fe8-93d3-d193a9bfa0da"
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "Filter_Array:_Employee_IDs_matching_Badgenumber": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "b63de22c-830b-40aa-8a23-3458aa5ee6ff"
+                  }
+                },
+                "Filter_Array:_Employee_IDs_matching_Badgenumber": {
+                  "type": "Query",
+                  "inputs": {
+                    "from": "@variables('SharePointItems')",
+                    "where": "@and(not(contains(body('Select:_Intelex_Badgenumber'), item()?['Badgenummer'])), not(contains(body('Select:_Intelex_Email_adresses'), item()?['E_x002d_Mail'])))\r\n"
+                  },
+                  "runAfter": {
+                    "Select:_Intelex_Badgenumber": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "9f491a9d-3bba-42ab-b6df-b4583eb6bc11"
+                  }
+                },
+                "Select:_Intelex_Email_adresses": {
+                  "type": "Select",
+                  "inputs": {
+                    "from": "@variables('Intelex')",
+                    "select": "@item()?['Email']"
+                  },
+                  "metadata": {
+                    "operationMetadataId": "c2c169d2-efdf-44de-a876-814c29db9896"
+                  }
+                },
+                "Select:_Intelex_Badgenumber": {
+                  "type": "Select",
+                  "inputs": {
+                    "from": "@variables('Intelex')",
+                    "select": "@Item()?['Intelex.BadgeNumber']"
+                  },
+                  "runAfter": {
+                    "Select:_Intelex_Email_adresses": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "08382092-9156-45ca-9ae2-3c61c912861c"
+                  }
+                },
+                "Compose:_debugContent_of_varBatchUpdateBadgenummers": {
+                  "type": "Compose",
+                  "inputs": "@variables('varBatchUpdateBadgenummers')",
+                  "runAfter": {
+                    "Loop_for_each_SharePointItem_to_Update_Badgenummers": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "88c567f2-184a-49d9-bca6-88cc7b48eacd"
+                  }
+                },
+                "Checks_state_of_debugMode": {
+                  "type": "If",
+                  "expression": {
+                    "and": [
+                      {
+                        "equals": [
+                          "@outputs('debugMode')",
+                          true
+                        ]
+                      }
+                    ]
+                  },
+                  "actions": {
+                    "Compose_WhatIf_Badgenummers_Message": {
+                      "type": "Compose",
+                      "inputs": "🔍 WHATIF MODE: Badge number preview generated. No changes were written to SharePoint.",
+                      "metadata": {
+                        "operationMetadataId": "whatif-badgenummers-message"
+                      }
+                    },
+                    "Compose_WhatIf_Badgenummers_Count": {
+                      "type": "Compose",
+                      "inputs": "@concat('Badge items that would be updated: ', string(length(variables('varBatchUpdateBadgenummers'))))",
+                      "runAfter": {
+                        "Compose_WhatIf_Badgenummers_Message": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "whatif-badgenummers-count"
+                      }
+                    }
+                  },
+                  "else": {
+                    "actions": {
+                      "Select:_BatchUpdateBadgenummers": {
+                        "type": "Select",
+                        "inputs": {
+                          "from": "@variables('varBatchUpdateBadgenummers')",
+                          "select": "@if(\r\n  empty(item()),\r\n  '{}',\r\n  replace(\r\n    concat(\r\n      '--batch_updatebadgenummers\\r%0D%0A',\r\n      'Content-Type: application/http\\r%0D%0A',\r\n      'Content-Transfer-Encoding: binary\\r%0D%0A\\r%0D%0A',\r\n      'PATCH \"https://mijnkuijpers.sharepoint.com/sites/accountteamASML/_api/web/lists(guid''e0911890-73ea-487b-8742-768631379470'')/items(', item()?['ID'], ') HTTP/1.1\\r%0D%0A',\r\n      'If-Match: *\\r%0D%0A',\r\n      'Content-Type: application/json;odata=verbose\\r%0D%0A\\r%0D%0A',\r\n      '{',\r\n        if(empty(item()?['Badgenummer']), '', concat('\"Badgenummer\": \"', item()?['Badgenummer'], '\",')),\r\n        if(empty(item()?['MailASML']), '', concat('\"MailASML\": \"', item()?['MailASML'], '\",')),\r\n        if(empty(item()?['filterSleutel']), '', concat('\"filterSleutel\": \"', item()?['filterSleutel'], '\",')),\r\n      '}\\r%0D%0A'\r\n    ),\r\n    ',}', \r\n    '}'\r\n  )\r\n)"
+                        },
+                        "metadata": {
+                          "operationMetadataId": "02c99d7b-fd8b-45b4-a930-25af8d9a21f3"
+                        }
+                      },
+                      "Chunk:_Body_BatchUpdateBadgenummers": {
+                        "type": "Compose",
+                        "inputs": "@chunk(body('Select:_BatchUpdateBadgenummers'),20)",
+                        "runAfter": {
+                          "Select:_BatchUpdateBadgenummers": [
+                            "Succeeded"
+                          ]
+                        },
+                        "metadata": {
+                          "operationMetadataId": "6b5c0410-bc2c-4586-9c72-3cdd7c64d2eb"
+                        }
+                      },
+                      "Apply_to_each_chunk_of_BatchUpdateBadgenummers": {
+                        "type": "Foreach",
+                        "foreach": "@coalesce(outputs('Chunk:_Body_BatchUpdateBadgenummers'), createArray())",
+                        "actions": {
+                          "Compose:_Body__BatchUpdateBadgenummers": {
+                            "type": "Compose",
+                            "inputs": "@concat(join(item(), ''), '--batch_updatebadgenummers--')",
+                            "metadata": {
+                              "operationMetadataId": "8747ee31-3071-49cb-a56e-d521dccd3bf2"
+                            }
+                          },
+                          "Patch_Badgelijst:_BatchUpdateBadgenummers": {
+                            "type": "OpenApiConnection",
+                            "description": "Send batch update to list 'Secretariaat KVA - Overzicht ASML Badges' (GUID e0911890-73ea-487b-8742-768631379470)",
+                            "inputs": {
+                              "parameters": {
+                                "dataset": "https://mijnkuijpers.sharepoint.com/sites/accountteamASML",
+                                "parameters/method": "POST",
+                                "parameters/uri": "/_api/$batch",
+                                "parameters/headers": {
+                                  "Content-Type": "multipart/mixed;boundary=batch_updatebadgenummers",
+                                  "Accept": "application/json;odata=verbose"
+                                },
+                                "parameters/body": "@outputs('Compose:_Body__BatchUpdateBadgenummers')"
+                              },
+                              "host": {
+                                "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+                                "operationId": "HttpRequest",
+                                "connectionName": "shared_sharepointonline"
+                              }
+                            },
+                            "runAfter": {
+                              "Compose:_Body__BatchUpdateBadgenummers": [
+                                "Succeeded",
+                                "Failed",
+                                "TimedOut"
+                              ]
+                            },
+                            "metadata": {
+                              "operationMetadataId": "59ddb965-cf55-46a7-9d7d-3cf1f2736321"
+                            }
+                          },
+                          "Parse_BatchUpdateBadgenummers_Response": {
+                            "type": "Compose",
+                            "inputs": "@if(\r\n  contains(string(body('Patch_Badgelijst:_BatchUpdateBadgenummers')), 'HTTP/1.1 2'),\r\n  'Success',\r\n  body('Patch_Badgelijst:_BatchUpdateBadgenummers')\r\n)",
+                            "runAfter": {
+                              "Patch_Badgelijst:_BatchUpdateBadgenummers": [
+                                "Succeeded"
+                              ]
+                            },
+                            "metadata": {
+                              "operationMetadataId": "62430c4b-55a7-4355-b7bd-f556410b3a2a"
+                            }
+                          },
+                          "Check_BatchUpdateBadgenummers_Success": {
+                            "type": "If",
+                            "expression": {
+                              "and": [
+                                {
+                                  "equals": [
+                                    "@outputs('Parse_BatchUpdateBadgenummers_Response')",
+                                    "Success"
+                                  ]
+                                }
+                              ]
+                            },
+                            "actions": {
+                              "Increment_varBatchUpdateBadgenummersSuccesCount": {
+                                "type": "IncrementVariable",
+                                "inputs": {
+                                  "name": "varBatchUpdateBadgenummersSuccessCount",
+                                  "value": 1
+                                },
+                                "metadata": {
+                                  "operationMetadataId": "430028ec-37a0-4f0d-bc8c-23e689bc4971"
+                                }
+                              },
+                              "Extract_Individual_Responses_BatchUpdateBadgenummers": {
+                                "type": "Compose",
+                                "inputs": "@split(string(body('Patch_Badgelijst:_BatchUpdateBadgenummers')), '--batch_updatebadgenummers')",
+                                "runAfter": {
+                                  "Add_Succes_Logging_BatchUpdateBadgenummers": [
+                                    "Succeeded"
+                                  ]
+                                },
+                                "metadata": {
+                                  "operationMetadataId": "44c65a76-7fa4-4eb3-8098-458da06ca4c4"
+                                }
+                              },
+                              "Check_Individual_BatchUpdateBadgenummers_Responses": {
+                                "type": "Foreach",
+                                "foreach": "@outputs('Extract_Individual_Responses_BatchUpdateBadgenummers')",
+                                "actions": {
+                                  "Individual_Response_Check": {
+                                    "type": "If",
+                                    "expression": {
+                                      "and": [
+                                        {
+                                          "not": {
+                                            "equals": [
+                                              "@item()",
+                                              ""
+                                            ]
+                                          }
+                                        },
+                                        {
+                                          "equals": [
+                                            "@contains(string(item()), 'HTTP/1.1 2')",
+                                            true
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    "actions": {},
+                                    "else": {
+                                      "actions": {
+                                        "Log_Individual_Failures_BatchUpdateBadgenummers": {
+                                          "type": "AppendToArrayVariable",
+                                          "inputs": {
+                                            "name": "varBatchUpdateBadgenummersPartialFailures",
+                                            "value": "@concat('❌ Individual item failed: ', string(item()))"
+                                          },
+                                          "metadata": {
+                                            "operationMetadataId": "352fa92f-26c5-434f-99c5-ad8c0f410828"
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "metadata": {
+                                      "operationMetadataId": "3ea48f85-b9b6-4c72-ae11-fb50ab9432e6"
+                                    }
+                                  }
+                                },
+                                "runAfter": {
+                                  "Extract_Individual_Responses_BatchUpdateBadgenummers": [
+                                    "Succeeded"
+                                  ]
+                                },
+                                "metadata": {
+                                  "operationMetadataId": "b9fc98ed-8c19-4247-a8a4-b9488f373de2"
+                                }
+                              },
+                              "Add_Succes_Logging_BatchUpdateBadgenummers": {
+                                "type": "AppendToArrayVariable",
+                                "inputs": {
+                                  "name": "varBatchUpdateBadgenummersResults",
+                                  "value": "@concat('✅ Batch update successful at ', convertFromUtc(utcNow(),'W. Europe Standard Time','yyyy-MM-ddTHH:mm:ss'), ' - Items processed: ', string(length(items('Apply_to_each_chunk_of_BatchUpdateBadgenummers'))))"
+                                },
+                                "runAfter": {
+                                  "Increment_varBatchUpdateBadgenummersSuccesCount": [
+                                    "Succeeded"
+                                  ]
+                                },
+                                "metadata": {
+                                  "operationMetadataId": "a61ec4e8-e17a-4a04-ac7c-336ac2c2a9a0"
+                                }
+                              }
+                            },
+                            "else": {
+                              "actions": {
+                                "Increment_varBatchUpdateBadgenummersFailureCount": {
+                                  "type": "IncrementVariable",
+                                  "inputs": {
+                                    "name": "varBatchUpdateBadgenummersFailureCount",
+                                    "value": 1
+                                  },
+                                  "metadata": {
+                                    "operationMetadataId": "d3b288ee-4a96-482a-83d9-8193d2171e38"
+                                  }
+                                },
+                                "Add_Failure_Logging_BatchUpdateBadgenummers": {
+                                  "type": "AppendToArrayVariable",
+                                  "inputs": {
+                                    "name": "varBatchUpdateBadgenummersErrors",
+                                    "value": "@concat('🔴 Batch update failed at ', convertFromUtc(utcNow(),'W. Europe Standard Time','yyyy-MM-ddTHH:mm:ss'), ' - Response: ', string(body('Patch_Badgelijst:_BatchUpdateBadgenummers')))"
+                                  },
+                                  "runAfter": {
+                                    "Increment_varBatchUpdateBadgenummersFailureCount": [
+                                      "Succeeded"
+                                    ]
+                                  },
+                                  "metadata": {
+                                    "operationMetadataId": "ad42c072-4b3d-4382-896c-684d01893f81"
+                                  }
+                                }
+                              }
+                            },
+                            "runAfter": {
+                              "Parse_BatchUpdateBadgenummers_Response": [
+                                "Succeeded"
+                              ]
+                            },
+                            "metadata": {
+                              "operationMetadataId": "044919c1-3dc7-4e9b-8bc6-903ea2166434"
+                            }
+                          },
+                          "Log_HTTP_Error_BatchUpdateBadgenummers": {
+                            "type": "Compose",
+                            "inputs": "@concat('🔴 HTTP Error at ', convertFromUtc(utcNow(),'W. Europe Standard Time','yyyy-MM-ddTHH:mm:ss'), ' - Error: ', string(outputs('Patch_Badgelijst:_BatchUpdateBadgenummers')?['result']))",
+                            "runAfter": {
+                              "Patch_Badgelijst:_BatchUpdateBadgenummers": [
+                                "Failed"
+                              ]
+                            },
+                            "metadata": {
+                              "operationMetadataId": "b70a10a3-6a95-473b-b974-9e003b494b36"
+                            }
+                          }
+                        },
+                        "runAfter": {
+                          "Chunk:_Body_BatchUpdateBadgenummers": [
+                            "Succeeded"
+                          ]
+                        },
+                        "runtimeConfiguration": {
+                          "concurrency": {
+                            "repetitions": 1
+                          }
+                        },
+                        "metadata": {
+                          "operationMetadataId": "95b81eeb-f070-4dc5-8303-2fc5b6af24bc"
+                        }
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "Compose:_debugContent_of_varBatchUpdateBadgenummers": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "3fcc176f-06bc-4100-9bbd-b8e7886559c9"
+                  }
+                }
+              },
+              "metadata": {
+                "operationMetadataId": "54f69cc1-b201-43fa-92ff-e081dfb0f32b"
+              }
+            },
+            "Catch_errors_Update_Badgenummers": {
+              "type": "Scope",
+              "actions": {
+                "Create_HTML_formatted_scope_results_Update_Badgenummers": {
+                  "type": "Compose",
+                  "inputs": "<table border=\\\"1\\\" cellpadding=\\\"5\\\" cellspacing=\\\"0\\\" style=\\\"border-collapse:collapse;\\\">\n<tr><th>Scope 'Update Badgenumnmers' Execution Status</th><td style=\\\"color: @{if(equals(outputs('Try_to_Update_Badgenummers')?['status'], 'Succeeded'), 'green', 'red')};\\\">@{coalesce(outputs('Try_to_Update_Badgenummers')?['status'], if(empty(outputs('Try_to_Update_Badgenummers')?['error']), 'Succeeded', 'Failed'))}</td></tr>\n<tr><th>Badge Updates</th><td>@{if(equals(outputs('Try_to_Update_Badgenummers')?['status'], 'Succeeded'), concat('Updated ', string(length(variables('varBatchUpdateBadgenummers'))), ' badge records'), 'Update failed')}</td></tr>\n<tr><th>Batch Requests</th><td>@{if(equals(outputs('Try_to_Update_Badgenummers')?['status'], 'Succeeded'), string(length(coalesce(outputs('Chunk:_Body_BatchUpdateBadgenummers'), createArray()))), 'N/A')}</td></tr>\n<tr><th>Last Update</th><td>@{utcNow()}</td></tr>\n@{if(not(empty(outputs('Try_to_Update_Badgenummers')?['error'])), concat('<tr><th>Error Details</th><td><pre>', string(outputs('Try_to_Update_Badgenummers')?['error']), '</pre></td></tr>'), '')}\n</table>",
+                  "metadata": {
+                    "operationMetadataId": "d5735bd0-40b0-4b41-a86e-925e45d9cbf8"
+                  }
+                }
+              },
+              "runAfter": {
+                "Try_to_Update_Badgenummers": [
+                  "Succeeded",
+                  "Failed",
+                  "Skipped",
+                  "TimedOut"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "3e7d03e3-ff13-44e7-be90-c24c6db0af9c"
+              }
+            }
+          },
+          "runAfter": {
+            "Set_varTRData": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "3811ba5c-398b-4d36-a9a0-8699e9e422e0"
+          }
+        },
+        "Scope_Update_Trainingsdata": {
+          "type": "Scope",
+          "actions": {
+            "Try_to_Update_Trainingsdata": {
+              "type": "Scope",
+              "actions": {
+                "Loop_for_each_SharePointItem_to_Update_Trainingsdata": {
+                  "type": "Foreach",
+                  "foreach": "@variables('SharePointItems')",
+                  "actions": {
+                    "Filter:_Trainingsdata": {
+                      "type": "Query",
+                      "description": "Filter Trainingsdata where trimmed and lowercased trainingsdata.filterSleutel matches trimmed and lowercased Badgenummer or DisplayNameFormatted.",
+                      "inputs": {
+                        "from": "@variables('Trainingsdata')",
+                        "where": "@or(\n  equals(\n    trim(toLower(item()?['trainingsdata.filterSleutel'])),\n    trim(toLower(outputs('Current_Item_in_the_Loop')?['Badgenummer']))\n  ),\n  equals(\n    trim(toLower(item()?['trainingsdata.filterSleutel'])),\n    trim(toLower(outputs('Current_Item_in_the_Loop')?['DisplayNameFormatted']))\n  )\n)"
+                      },
+                      "runAfter": {
+                        "Current_Item_in_the_Loop": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "ab149a30-fcb3-4b9b-aa5e-de92507a4c6a"
+                      }
+                    },
+                    "Validate_Required_Fields_Trainingsdata": {
+                      "type": "If",
+                      "expression": {
+                        "and": [
+                          {
+                            "greater": [
+                              "@length(body('Filter:_Trainingsdata'))",
+                              0
+                            ]
+                          },
+                          {
+                            "or": [
+                              {
+                                "not": {
+                                  "equals": [
+                                    "@string(body('Filter:_Trainingsdata')[0]?['trainingsdata.datumCleanroom'])",
+                                    "@string(items('Loop_for_each_SharePointItem_to_Update_Trainingsdata')?['datumCleanroom'])"
+                                  ]
+                                }
+                              },
+                              {
+                                "not": {
+                                  "equals": [
+                                    "@string(body('Filter:_Trainingsdata')[0]?['trainingsdata.gemaaktDatumCleanroom'])",
+                                    "@string(items('Loop_for_each_SharePointItem_to_Update_Trainingsdata')?['gemaaktDatumCleanroom'])"
+                                  ]
+                                }
+                              },
+                              {
+                                "not": {
+                                  "equals": [
+                                    "@string(body('Filter:_Trainingsdata')[0]?['trainingsdata.gemaaktEmailCleanroom'])",
+                                    "@string(items('Loop_for_each_SharePointItem_to_Update_Trainingsdata')?['gemaaktEmailCleanroom'])"
+                                  ]
+                                }
+                              },
+                              {
+                                "not": {
+                                  "equals": [
+                                    "@string(body('Filter:_Trainingsdata')[0]?['trainingsdata.gemaaktNaamCleanroom'])",
+                                    "@string(items('Loop_for_each_SharePointItem_to_Update_Trainingsdata')?['gemaaktNaamCleanroom'])"
+                                  ]
+                                }
+                              },
+                              {
+                                "not": {
+                                  "equals": [
+                                    "@string(body('Filter:_Trainingsdata')[0]?['trainingsdata.datumPlenum'])",
+                                    "@string(items('Loop_for_each_SharePointItem_to_Update_Trainingsdata')?['datumPlenum'])"
+                                  ]
+                                }
+                              },
+                              {
+                                "not": {
+                                  "equals": [
+                                    "@string(body('Filter:_Trainingsdata')[0]?['trainingsdata.gemaaktDatumPlenum'])",
+                                    "@string(items('Loop_for_each_SharePointItem_to_Update_Trainingsdata')?['gemaaktDatumPlenum'])"
+                                  ]
+                                }
+                              },
+                              {
+                                "not": {
+                                  "equals": [
+                                    "@string(body('Filter:_Trainingsdata')[0]?['trainingsdata.gemaaktEmailPlenum'])",
+                                    "@string(items('Loop_for_each_SharePointItem_to_Update_Trainingsdata')?['gemaaktEmailPlenum'])"
+                                  ]
+                                }
+                              },
+                              {
+                                "not": {
+                                  "equals": [
+                                    "@string(body('Filter:_Trainingsdata')[0]?['trainingsdata.gemaaktNaamPlenum'])",
+                                    "@string(items('Loop_for_each_SharePointItem_to_Update_Trainingsdata')?['gemaaktNaamPlenum'])"
+                                  ]
+                                }
+                              },
+                              {
+                                "not": {
+                                  "equals": [
+                                    "@string(body('Filter:_Trainingsdata')[0]?['trainingsdata.toegangPlenum'])",
+                                    "@string(items('Loop_for_each_SharePointItem_to_Update_Trainingsdata')?['toegangPlenum'])"
+                                  ]
+                                }
+                              },
+                              {
+                                "not": {
+                                  "equals": [
+                                    "@string(body('Filter:_Trainingsdata')[0]?['trainingsdata.tijdSlotPlenum'])",
+                                    "@string(items('Loop_for_each_SharePointItem_to_Update_Trainingsdata')?['tijdSlotPlenum'])"
+                                  ]
+                                }
+                              },
+                              {
+                                "not": {
+                                  "equals": [
+                                    "@string(body('Filter:_Trainingsdata')[0]?['trainingsdata.datumGasyard'])",
+                                    "@string(items('Loop_for_each_SharePointItem_to_Update_Trainingsdata')?['datumGasyard'])"
+                                  ]
+                                }
+                              },
+                              {
+                                "not": {
+                                  "equals": [
+                                    "@string(body('Filter:_Trainingsdata')[0]?['trainingsdata.gemaaktDatumGasyard'])",
+                                    "@string(items('Loop_for_each_SharePointItem_to_Update_Trainingsdata')?['gemaaktDatumGasyard'])"
+                                  ]
+                                }
+                              },
+                              {
+                                "not": {
+                                  "equals": [
+                                    "@string(body('Filter:_Trainingsdata')[0]?['trainingsdata.gemaaktEmailGasyard'])",
+                                    "@string(items('Loop_for_each_SharePointItem_to_Update_Trainingsdata')?['gemaaktEmailGasyard'])"
+                                  ]
+                                }
+                              },
+                              {
+                                "not": {
+                                  "equals": [
+                                    "@string(body('Filter:_Trainingsdata')[0]?['trainingsdata.gemaaktNaamGasyard'])",
+                                    "@string(items('Loop_for_each_SharePointItem_to_Update_Trainingsdata')?['gemaaktNaamGasyard'])"
+                                  ]
+                                }
+                              },
+                              {
+                                "not": {
+                                  "equals": [
+                                    "@string(body('Filter:_Trainingsdata')[0]?['trainingsdata.geldigheidGasyard'])",
+                                    "@string(items('Loop_for_each_SharePointItem_to_Update_Trainingsdata')?['geldigheidGasyard'])"
+                                  ]
+                                }
+                              },
+                              {
+                                "not": {
+                                  "equals": [
+                                    "@string(body('Filter:_Trainingsdata')[0]?['trainingsdata.beschrijvingGasyard'])",
+                                    "@string(items('Loop_for_each_SharePointItem_to_Update_Trainingsdata')?['beschrijvingGasyard'])"
+                                  ]
+                                }
+                              },
+                              {
+                                "not": {
+                                  "equals": [
+                                    "@string(body('Filter:_Trainingsdata')[0]?['trainingsdata.tijdSlotGasyard'])",
+                                    "@string(items('Loop_for_each_SharePointItem_to_Update_Trainingsdata')?['tijdSlotGasyard'])"
+                                  ]
+                                }
+                              },
+                              {
+                                "not": {
+                                  "equals": [
+                                    "@string(body('Filter:_Trainingsdata')[0]?['trainingsdata.filterSleutel'])",
+                                    "@string(items('Loop_for_each_SharePointItem_to_Update_Trainingsdata')?['filterSleutel'])"
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      "actions": {
+                        "Append_to:_BatchUpdateTrainingsdata": {
+                          "type": "AppendToArrayVariable",
+                          "inputs": {
+                            "name": "varBatchUpdateTrainingsdata",
+                            "value": {
+                              "ID": "@{items('Loop_for_each_SharePointItem_to_Update_Trainingsdata')?['ID']}",
+                              "filterSleutel": "@{body('Filter:_Trainingsdata')?[0]?['trainingsdata.filterSleutel']}",
+                              "datumCleanroom": "@{body('Filter:_Trainingsdata')?[0]?['trainingsdata.datumCleanroom']}",
+                              "gemaaktDatumCleanroom": "@{body('Filter:_Trainingsdata')?[0]?['trainingsdata.gemaaktDatumCleanroom']}",
+                              "gemaaktEmailCleanroom": "@{body('Filter:_Trainingsdata')?[0]?['trainingsdata.gemaaktEmailCleanroom']}",
+                              "gemaaktNaamCleanroom": "@{body('Filter:_Trainingsdata')?[0]?['trainingsdata.gemaaktNaamCleanroom']}",
+                              "datumPlenum": "@{body('Filter:_Trainingsdata')?[0]?['trainingsdata.datumPlenum']}",
+                              "gemaaktDatumPlenum": "@{body('Filter:_Trainingsdata')?[0]?['trainingsdata.gemaaktDatumPlenum']}",
+                              "gemaaktEmailPlenum": "@{body('Filter:_Trainingsdata')?[0]?['trainingsdata.gemaaktEmailPlenum']}",
+                              "gemaaktNaamPlenum": "@{body('Filter:_Trainingsdata')?[0]?['trainingsdata.gemaaktNaamPlenum']}",
+                              "toegangPlenum": "@{body('Filter:_Trainingsdata')?[0]?['trainingsdata.toegangPlenum']}",
+                              "tijdSlotPlenum": "@{body('Filter:_Trainingsdata')?[0]?['trainingsdata.tijdSlotPlenum']}",
+                              "datumGasyard": "@{body('Filter:_Trainingsdata')?[0]?['trainingsdata.datumGasyard']}",
+                              "gemaaktDatumGasyard": "@{body('Filter:_Trainingsdata')?[0]?['trainingsdata.gemaaktDatumGasyard']}",
+                              "gemaaktEmailGasyard": "@{body('Filter:_Trainingsdata')?[0]?['trainingsdata.gemaaktEmailGasyard']}",
+                              "gemaaktNaamGasyard": "@{body('Filter:_Trainingsdata')?[0]?['trainingsdata.gemaaktNaamGasyard']}",
+                              "geldigheidGasyard": "@{body('Filter:_Trainingsdata')?[0]?['trainingsdata.geldigheidGasyard']}",
+                              "beschrijvingGasyard": "@{body('Filter:_Trainingsdata')?[0]?['trainingsdata.beschrijvingGasyard']}",
+                              "tijdSlotGasyard": "@{body('Filter:_Trainingsdata')?[0]?['trainingsdata.tijdSlotGasyard']}"
+                            }
+                          },
+                          "metadata": {
+                            "operationMetadataId": "8b7d7842-0ab6-4e6b-a852-1c15e8a1a7f3"
+                          }
+                        }
+                      },
+                      "else": {
+                        "actions": {
+                          "Log_Validation_Failure_Fields_Trainingsdata": {
+                            "type": "Compose",
+                            "inputs": "@concat('Validation failed for item ID: ', \r\n  coalesce(items('Loop_for_each_SharePointItem_to_Update_Trainingsdata')?['ID'], 'Unknown'), \r\n  ' - Missing required fields')",
+                            "metadata": {
+                              "operationMetadataId": "e6e40f4e-77a2-4b81-a668-b1036a327c7d"
+                            }
+                          }
+                        }
+                      },
+                      "runAfter": {
+                        "Filter:_Trainingsdata": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "85ee4f27-f9f3-43e9-931d-59647cf17408"
+                      }
+                    },
+                    "Current_Item_in_the_Loop": {
+                      "type": "Compose",
+                      "inputs": "@items('Loop_for_each_SharePointItem_to_Update_Trainingsdata')",
+                      "metadata": {
+                        "operationMetadataId": "b465e4e7-8492-4e5a-8fa2-55d033829063"
+                      }
+                    }
+                  },
+                  "runtimeConfiguration": {
+                    "concurrency": {
+                      "repetitions": 50
+                    }
+                  },
+                  "metadata": {
+                    "operationMetadataId": "af8e7ed0-a80f-40c9-9a17-6e061c7014b4"
+                  }
+                },
+                "Compose:_debugContent_of_varBatchUpdateTrainingsdata": {
+                  "type": "Compose",
+                  "inputs": "@variables('varBatchUpdateTrainingsdata')",
+                  "runAfter": {
+                    "Loop_for_each_SharePointItem_to_Update_Trainingsdata": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "9b9195fa-bca6-4efc-9caf-b42425aa1e07"
+                  }
+                },
+                "Checks_state_of_debugMode_BatchUpdateTrainingsdata": {
+                  "type": "If",
+                  "expression": {
+                    "and": [
+                      {
+                        "equals": [
+                          "@outputs('debugMode')",
+                          true
+                        ]
+                      }
+                    ]
+                  },
+                  "actions": {
+                    "Compose_WhatIf_Preview_Message": {
+                      "type": "Compose",
+                      "inputs": "🔍 WHATIF MODE: Preview generated. No changes were written to SharePoint. Set debugMode=false to apply changes.",
+                      "metadata": {
+                        "operationMetadataId": "whatif-preview-message"
+                      }
+                    },
+                    "Compose_WhatIf_ItemCount": {
+                      "type": "Compose",
+                      "inputs": "@concat('Items that would be updated: ', string(length(variables('varBatchUpdateTrainingsdata'))))",
+                      "runAfter": {
+                        "Compose_WhatIf_Preview_Message": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "whatif-item-count"
+                      }
+                    }
+                  },
+                  "else": {
+                    "actions": {
+                      "Select:_BatchUpdateTrainingsdata": {
+                        "type": "Select",
+                        "description": "Build batch PATCH payload for updated fields like datumCleanroom using body('Append_to:_BatchUpdateTrainingsdata')",
+                        "inputs": {
+                          "from": "@variables('varBatchUpdateTrainingsdata')",
+                          "select": "@if(\r\n  empty(item()),\r\n  '{}',\r\n  replace(\r\n    concat(\r\n      '--batch_updatetrainingsdata\\r%0D%0A',\r\n      'Content-Type: application/http\\r%0D%0A',\r\n      'Content-Transfer-Encoding: binary\\r%0D%0A\\r%0D%0A',\r\n      'PATCH \"https://mijnkuijpers.sharepoint.com/sites/accountteamASML/_api/web/lists(guid''e0911890-73ea-487b-8742-768631379470'')/items(', item()?['ID'], ') HTTP/1.1\\r%0D%0A',\r\n      'If-Match: *\\r%0D%0A',\r\n      'Content-Type: application/json;odata=verbose\\r%0D%0A\\r%0D%0A',\r\n      '{',\r\n        if(empty(item()?['datumCleanroom']), null, concat('\"datumCleanroom\": \"', item()?['datumCleanroom'], '\",')),\r\n        if(empty(item()?['gemaaktDatumCleanroom']), null, concat('\"gemaaktDatumCleanroom\": \"', item()?['gemaaktDatumCleanroom'], '\",')),\r\n        if(empty(item()?['filterSleutel']), null, concat('\"filterSleutel\": \"', item()?['filterSleutel'], '\",')),\r\n        if(empty(item()?['gemaaktEmailCleanroom']), null, concat('\"gemaaktEmailCleanroom\": \"', item()?['gemaaktEmailCleanroom'], '\",')),\r\n        if(empty(item()?['gemaaktNaamCleanroom']), null, concat('\"gemaaktNaamCleanroom\": \"', item()?['gemaaktNaamCleanroom'], '\",')),\r\n        if(empty(item()?['datumPlenum']), null, concat('\"datumPlenum\": \"', item()?['datumPlenum'], '\",')),\r\n        if(empty(item()?['gemaaktDatumPlenum']), null, concat('\"gemaaktDatumPlenum\": \"', item()?['gemaaktDatumPlenum'], '\",')),\r\n        if(empty(item()?['gemaaktEmailPlenum']), null, concat('\"gemaaktEmailPlenum\": \"', item()?['gemaaktEmailPlenum'], '\",')),\r\n        if(empty(item()?['gemaaktNaamPlenum']), null, concat('\"gemaaktNaamPlenum\": \"', item()?['gemaaktNaamPlenum'], '\",')),\r\n        if(empty(item()?['toegangPlenum']), null, concat('\"toegangPlenum\": \"', item()?['toegangPlenum'], '\",')),\r\n        if(empty(item()?['tijdSlotPlenum']), null, concat('\"tijdSlotPlenum\": \"', item()?['tijdSlotPlenum'], '\",')),\r\n        if(empty(item()?['datumGasyard']), null, concat('\"datumGasyard\": \"', item()?['datumGasyard'], '\",')),\r\n        if(empty(item()?['gemaaktDatumGasyard']), null, concat('\"gemaaktDatumGasyard\": \"', item()?['gemaaktDatumGasyard'], '\",')),\r\n        if(empty(item()?['gemaaktEmailGasyard']), null, concat('\"gemaaktEmailGasyard\": \"', item()?['gemaaktEmailGasyard'], '\",')),\r\n        if(empty(item()?['gemaaktNaamGasyard']), null, concat('\"gemaaktNaamGasyard\": \"', item()?['gemaaktNaamGasyard'], '\",')),\r\n        if(empty(item()?['geldigheidGasyard']), null, concat('\"geldigheidGasyard\": \"', item()?['geldigheidGasyard'], '\",')),\r\n        if(empty(item()?['beschrijvingGasyard']), null, concat('\"beschrijvingGasyard\": \"', item()?['beschrijvingGasyard'], '\",')),\r\n        if(empty(item()?['tijdSlotGasyard']), null, concat('\"tijdSlotGasyard\": \"', item()?['tijdSlotGasyard'], '\",')),\r\n      '}\\r%0D%0A'\r\n    ),\r\n    ',}', \r\n    '}'\r\n  )\r\n)"
+                        },
+                        "metadata": {
+                          "operationMetadataId": "bd972d2a-2d5c-4c7b-b3e1-c0a07e034080"
+                        }
+                      },
+                      "Chunk:_Body_BatchUpdateTrainingsdata": {
+                        "type": "Compose",
+                        "inputs": "@chunk(body('Select:_BatchUpdateTrainingsdata'), 20)",
+                        "runAfter": {
+                          "Select:_BatchUpdateTrainingsdata": [
+                            "Succeeded"
+                          ]
+                        },
+                        "metadata": {
+                          "operationMetadataId": "7adc1653-56e8-48c4-a9cf-78b4b6f1f03b"
+                        }
+                      },
+                      "Apply_to_each_chunk_of_BatchUpdateTrainingsdata": {
+                        "type": "Foreach",
+                        "foreach": "@coalesce(outputs('Chunk:_Body_BatchUpdateTrainingsdata'), createArray())",
+                        "actions": {
+                          "Compose:_Body_BatchUpdateTrainingsdata": {
+                            "type": "Compose",
+                            "inputs": "@concat(join(item(), ''), '--batch_updatetrainingsdata--')",
+                            "metadata": {
+                              "operationMetadataId": "83f81c45-e0bc-4953-b516-6fa9bd36a417"
+                            }
+                          },
+                          "Patch_Badgelijst:_BatchUpdateTrainingsData": {
+                            "type": "OpenApiConnection",
+                            "description": "Send batch update to list 'Secretariaat KVA - Overzicht ASML Badges' (GUID e0911890-73ea-487b-8742-768631379470)",
+                            "inputs": {
+                              "parameters": {
+                                "dataset": "https://mijnkuijpers.sharepoint.com/sites/accountteamASML",
+                                "parameters/method": "POST",
+                                "parameters/uri": "/_api/$batch",
+                                "parameters/headers": {
+                                  "Content-Type": "multipart/mixed;boundary=batch_updatetrainingsdata",
+                                  "Accept": "application/json;odata=verbose"
+                                },
+                                "parameters/body": "@outputs('Compose:_Body_BatchUpdateTrainingsdata')"
+                              },
+                              "host": {
+                                "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+                                "operationId": "HttpRequest",
+                                "connectionName": "shared_sharepointonline"
+                              }
+                            },
+                            "runAfter": {
+                              "Compose:_Body_BatchUpdateTrainingsdata": [
+                                "Succeeded",
+                                "TimedOut",
+                                "Failed"
+                              ]
+                            },
+                            "metadata": {
+                              "operationMetadataId": "608dff0c-dc1e-4365-9862-4949491a10e4"
+                            }
+                          },
+                          "Parse__BatchUpdateTrainingsData_Response": {
+                            "type": "Compose",
+                            "inputs": "@if(\r\n  contains(string(body('Patch_Badgelijst:_BatchUpdateTrainingsData')), 'HTTP/1.1 2'),\r\n  'Success',\r\n  body('Patch_Badgelijst:_BatchUpdateTrainingsData')\r\n)",
+                            "runAfter": {
+                              "Patch_Badgelijst:_BatchUpdateTrainingsData": [
+                                "Succeeded"
+                              ]
+                            },
+                            "metadata": {
+                              "operationMetadataId": "25e28c39-ffa6-4467-9a6d-1950c03d4227"
+                            }
+                          },
+                          "Log_HTTP_Error_BatchUpdateTrainingsdata": {
+                            "type": "Compose",
+                            "inputs": "@concat('🔴 HTTP Error at ', convertFromUtc(utcNow(),'W. Europe Standard Time','yyyy-MM-ddTHH:mm:ss'), ' - Error: ', string(outputs('Patch_Badgelijst:_BatchUpdateTrainingsData')?['result']))",
+                            "runAfter": {
+                              "Patch_Badgelijst:_BatchUpdateTrainingsData": [
+                                "Failed"
+                              ]
+                            },
+                            "metadata": {
+                              "operationMetadataId": "476cf0be-b4a7-4821-bca9-b57b6c71c392"
+                            }
+                          }
+                        },
+                        "runAfter": {
+                          "Chunk:_Body_BatchUpdateTrainingsdata": [
+                            "Succeeded"
+                          ]
+                        },
+                        "runtimeConfiguration": {
+                          "concurrency": {
+                            "repetitions": 1
+                          }
+                        },
+                        "metadata": {
+                          "operationMetadataId": "447408c3-8994-4115-94cd-6160292c024e"
+                        }
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "Compose:_debugContent_of_varBatchUpdateTrainingsdata": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "63100696-216b-4391-9d17-b5843bb1dff9"
+                  }
+                }
+              },
+              "metadata": {
+                "operationMetadataId": "eabd055c-ed08-40fd-aece-933d1ff601ec"
+              }
+            },
+            "Catch_errors_Update_Trainingsdata": {
+              "type": "Scope",
+              "actions": {
+                "Create_HTML_formatted_scope_results_Update_Trainingsdata": {
+                  "type": "Compose",
+                  "inputs": "<table border=\\\"1\\\" cellpadding=\\\"5\\\" cellspacing=\\\"0\\\" style=\\\"border-collapse:collapse;\\\">\n<tr><th>Scope 'Update Trainingsdata' Execution Status</th><td style=\\\"color: @{if(equals(outputs('Try_to_Update_Trainingsdata')?['status'], 'Succeeded'), 'green', 'red')};\\\">@{coalesce(outputs('Try_to_Update_Trainingsdata')?['status'], if(empty(outputs('Try_to_Update_Trainingsdata')?['error']), 'Succeeded', 'Failed'))}</td></tr>%0D%0A  <tr><th>Training Records</th><td>@{if(equals(outputs('Try_to_Update_Trainingsdata')?['status'], 'Succeeded'), concat('Updated ', string(length(variables('varBatchUpdateTrainingsdata'))), ' training records'), 'Update failed')}</td></tr>\n<tr><th>Batch Requests</th><td>@{if(equals(outputs('Try_to_Update_Trainingsdata')?['status'], 'Succeeded'), string(length(coalesce(outputs('Chunk:_Body_BatchUpdateTrainingsdata'), createArray()))), 'N/A')}</td></tr>\n<tr><th>Last Update</th><td>@{utcNow()}</td></tr>\n@{if(not(empty(outputs('Try_to_Update_Trainingsdata')?['error'])), concat('<tr><th>Error Details</th><td><pre>', string(outputs('Try_to_Update_Trainingsdata')?['error']), '</pre></td></tr>'), '')}\n</table>",
+                  "metadata": {
+                    "operationMetadataId": "cc917af8-a108-4b7c-9ae5-ed1f73b93755"
+                  }
+                }
+              },
+              "runAfter": {
+                "Try_to_Update_Trainingsdata": [
+                  "Succeeded",
+                  "Failed",
+                  "Skipped",
+                  "TimedOut"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "fed6df66-8c43-4cd2-94a3-9dee537d443e"
+              }
+            }
+          },
+          "runAfter": {
+            "debug_CountTotals": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "5ae2d828-86ea-4722-90b7-7bd8d918d836"
+          }
+        },
+        "Initialize_SharePointItems": {
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "SharePointItems",
+                "type": "array",
+                "value": "@body('Create_NewObject_with_all_possible_keys_in_it')"
+              }
+            ]
+          },
+          "runAfter": {
+            "Scope_Badgeregistratielijst": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "dfeef208-c881-4745-8b05-11c6ffb90750"
+          }
+        },
+        "Scope_Update_AzureData": {
+          "type": "Scope",
+          "actions": {
+            "Try_Update_AzureData": {
+              "type": "Scope",
+              "actions": {
+                "Loop_Pair_SharePointWithAzure": {
+                  "type": "Foreach",
+                  "foreach": "@variables('SharePointItems')",
+                  "actions": {
+                    "Filter_AzureUserByEmail": {
+                      "type": "Query",
+                      "inputs": {
+                        "from": "@body('Data_Format_FoundUserData')",
+                        "where": "@equals( trim(toLower(item()['UPN'])), trim(toLower(items('Loop_Pair_SharePointWithAzure')?['userPrincipalName'])) )"
+                      },
+                      "metadata": {
+                        "operationMetadataId": "84ab8437-8d2c-4ced-b268-17ec7b764ee2"
+                      }
+                    },
+                    "Append_Paired_Data": {
+                      "type": "AppendToArrayVariable",
+                      "inputs": {
+                        "name": "varPairedData",
+                        "value": {
+                          "ID": "@items('Loop_Pair_SharePointWithAzure')?['ID']",
+                          "Naam": "@coalesce(items('Loop_Pair_SharePointWithAzure')?['Naam'], '')",
+                          "Email": "@{items('Loop_Pair_SharePointWithAzure')?['MedewerkerKuijpers_Email']}",
+                          "Birthday": "@coalesce(items('Loop_Pair_SharePointWithAzure')?['Birthday'], '')",
+                          "HireDate": "@coalesce(items('Loop_Pair_SharePointWithAzure')?['HireDate'], '')",
+                          "userRemoved": "@coalesce(items('Loop_Pair_SharePointWithAzure')?['userRemoved'], false)",
+                          "azureUser": "@first(body('Filter_AzureUserByEmail')) "
+                        }
+                      },
+                      "runAfter": {
+                        "Filter_AzureUserByEmail": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "11797bb4-c5be-4243-a536-324f8f3e9a94"
+                      }
+                    }
+                  },
+                  "metadata": {
+                    "operationMetadataId": "cde71bd7-7554-4cec-9d2f-f03c03612d73"
+                  }
+                },
+                "Filter_ItemsToUpdate": {
+                  "type": "Query",
+                  "description": "Filter paired data where azureUser has valid UPN and email, and either userRemoved needs to be reset to false, or Birthday/HireDate differs",
+                  "inputs": {
+                    "from": "@variables('varPairedData')",
+                    "where": "@and(not(empty(item()['azureUser'])),not(empty(item()['azureUser']['UPN'])),not(empty(item()['Email'])),or(equals(item()['userRemoved'],true),and(not(empty(item()['azureUser']['Birthday'])),not(empty(item()['Birthday'])),not(equals(formatDateTime(item()['Birthday'],'d MMMM','nl-NL'),item()['azureUser']['BirthdayFormatted']))),and(not(empty(item()['azureUser']['HireDate'])),not(empty(item()['HireDate'])),not(equals(formatDateTime(item()['HireDate'],'d MMMM yyyy','nl-NL'),item()['azureUser']['HireDateFormatted'])))))"
+                  },
+                  "runAfter": {
+                    "Loop_Pair_SharePointWithAzure": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "afb379dc-9d6b-4616-b7b2-a50a454ebb4c"
+                  }
+                },
+                "Loop_Mark_Removed": {
+                  "type": "Foreach",
+                  "foreach": "@body('Filter_ItemsToMarkRemoved')",
+                  "actions": {
+                    "Condition": {
+                      "type": "If",
+                      "expression": {
+                        "and": [
+                          {
+                            "equals": [
+                              "@outputs('debugMode')",
+                              false
+                            ]
+                          }
+                        ]
+                      },
+                      "actions": {
+                        "SharePoint_Update_EmployeeRemoved": {
+                          "type": "OpenApiConnection",
+                          "inputs": {
+                            "parameters": {
+                              "dataset": "https://mijnkuijpers.sharepoint.com/sites/accountteamASML",
+                              "table": "e0911890-73ea-487b-8742-768631379470",
+                              "id": "@items('Loop_Mark_Removed')?['ID']",
+                              "item/userRemoved": true
+                            },
+                            "host": {
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+                              "operationId": "PatchItem",
+                              "connectionName": "shared_sharepointonline"
+                            }
+                          },
+                          "metadata": {
+                            "operationMetadataId": "e0a30891-0ca6-4709-a7fe-aabc3d795744"
+                          }
+                        },
+                        "Append_Results_To_SkippedUsers": {
+                          "type": "AppendToArrayVariable",
+                          "inputs": {
+                            "name": "varSkippedUsers",
+                            "value": {
+                              "Name": "@{if(not(empty(item()?['Naam'])), item()?['Naam'], if(not(empty(item()?['DisplayName'])), item()?['DisplayName'], if(not(empty(item()?['DisplayNameFormatted'])), item()?['DisplayNameFormatted'], 'Naam Onbekend')))}",
+                              "Email": "@{if(not(empty(item()?['MedewerkerKuijpers_Email'])), item()?['MedewerkerKuijpers_Email'], if(not(empty(item()?['E_x002d_Mail'])), item()?['E_x002d_Mail'], if(not(empty(item()?['userPrincipalName'])), item()?['userPrincipalName'], 'Email Onbekend')))}"
+                            }
+                          },
+                          "runAfter": {
+                            "SharePoint_Update_EmployeeRemoved": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "3b3f7bde-c74c-4cfd-9245-a97bfbbf5242"
+                          }
+                        }
+                      },
+                      "else": {
+                        "actions": {}
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "Filter_ItemsToUpdate": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "6645b59e-4a55-4477-871a-cc60fe734256"
+                  }
+                },
+                "Loop_Update_Items": {
+                  "type": "Foreach",
+                  "foreach": "@body('Filter_ItemsToUpdate')",
+                  "actions": {
+                    "Track_Failed_Update": {
+                      "type": "AppendToArrayVariable",
+                      "inputs": {
+                        "name": "varFailedUpdates",
+                        "value": {
+                          "ID": "@items('Loop_Update_Items')?['ID']",
+                          "Naam": "@coalesce(items('Loop_Update_Items')?['Naam'], items('Loop_Update_Items')?['MedewerkerKuijpers_DisplayName'], 'Naam Onbekend')",
+                          "Email": "@coalesce(items('Loop_Update_Items')?['Email'], items('Loop_Update_Items')?['MedewerkerKuijpers_Email'], 'Email Onbekend')",
+                          "UPN": "@items('Loop_Update_Items')['azureUser']['UPN']",
+                          "ErrorMessage": "@outputs('SharePoint_Update_EmployeeItem')?['error']?['message']",
+                          "ErrorCode": "@outputs('SharePoint_Update_EmployeeItem')?['error']?['code']",
+                          "AttemptedChanges": "@concat(if(and(not(empty(items('Loop_Update_Items')?['Birthday'])), not(equals(formatDateTime(items('Loop_Update_Items')?['Birthday'], 'd MMMM', 'nl-NL'), items('Loop_Update_Items')['azureUser']['BirthdayFormatted']))), 'Birthday; ', ''), if(and(not(empty(items('Loop_Update_Items')?['HireDate'])), not(equals(formatDateTime(items('Loop_Update_Items')?['HireDate'], 'd MMMM yyyy', 'nl-NL'), items('Loop_Update_Items')['azureUser']['HireDateFormatted']))), 'HireDate; ', ''), if(equals(items('Loop_Update_Items')?['userRemoved'], true), 'userRemoved; ', ''), 'MedewerkerKuijpers/Claims')",
+                          "Timestamp": "@utcNow()"
+                        }
+                      },
+                      "runAfter": {
+                        "Condition_1": [
+                          "Failed",
+                          "TimedOut"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "a7b8c9d0-e1f2-3456-0123-789012345678"
+                      }
+                    },
+                    "Condition_1": {
+                      "type": "If",
+                      "expression": {
+                        "and": [
+                          {
+                            "equals": [
+                              "@outputs('debugMode')",
+                              false
+                            ]
+                          }
+                        ]
+                      },
+                      "actions": {
+                        "SharePoint_Update_EmployeeItem": {
+                          "type": "OpenApiConnection",
+                          "inputs": {
+                            "parameters": {
+                              "dataset": "https://mijnkuijpers.sharepoint.com/sites/accountteamASML",
+                              "table": "e0911890-73ea-487b-8742-768631379470",
+                              "id": "@items('Loop_Update_Items')?['ID']",
+                              "item/MedewerkerKuijpers/Claims": "@item()['azureUser']['UPN']",
+                              "item/HireDate": "@if(empty(item()['azureUser']['HireDate']), null, item()['azureUser']['HireDate'])",
+                              "item/userRemoved": false,
+                              "item/Birthday": "@if(empty(item()['azureUser']['Birthday']), null, item()['azureUser']['Birthday'])"
+                            },
+                            "host": {
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+                              "operationId": "PatchItem",
+                              "connectionName": "shared_sharepointonline"
+                            }
+                          },
+                          "metadata": {
+                            "operationMetadataId": "526b3b83-11a2-451f-b2ae-ddc070d064d8"
+                          }
+                        },
+                        "Append_Results_To_Users_": {
+                          "type": "AppendToArrayVariable",
+                          "inputs": {
+                            "name": "varUsers",
+                            "value": "@item()['azureUser']"
+                          },
+                          "runAfter": {
+                            "SharePoint_Update_EmployeeItem": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "ecc62ce8-e01c-4da0-978d-2df8c8a4d72c"
+                          }
+                        },
+                        "Track_Successful_Update": {
+                          "type": "AppendToArrayVariable",
+                          "inputs": {
+                            "name": "varSuccessfulUpdates",
+                            "value": {
+                              "ID": "@items('Loop_Update_Items')?['ID']",
+                              "Naam": "@coalesce(items('Loop_Update_Items')?['Naam'], items('Loop_Update_Items')?['MedewerkerKuijpers_DisplayName'], 'Naam Onbekend')",
+                              "Email": "@coalesce(items('Loop_Update_Items')?['Email'], items('Loop_Update_Items')?['MedewerkerKuijpers_Email'], 'Email Onbekend')",
+                              "UPN": "@items('Loop_Update_Items')['azureUser']['UPN']",
+                              "Changes": "@concat(if(and(not(empty(items('Loop_Update_Items')?['Birthday'])), not(equals(formatDateTime(items('Loop_Update_Items')?['Birthday'], 'd MMMM', 'nl-NL'), items('Loop_Update_Items')['azureUser']['BirthdayFormatted']))), concat('Birthday: ', coalesce(formatDateTime(items('Loop_Update_Items')?['Birthday'], 'd MMMM', 'nl-NL'), 'empty'), ' → ', items('Loop_Update_Items')['azureUser']['BirthdayFormatted'], '; '), ''), if(and(not(empty(items('Loop_Update_Items')?['HireDate'])), not(equals(formatDateTime(items('Loop_Update_Items')?['HireDate'], 'd MMMM yyyy', 'nl-NL'), items('Loop_Update_Items')['azureUser']['HireDateFormatted']))), concat('HireDate: ', coalesce(formatDateTime(items('Loop_Update_Items')?['HireDate'], 'd MMMM yyyy', 'nl-NL'), 'empty'), ' → ', items('Loop_Update_Items')['azureUser']['HireDateFormatted'], '; '), ''), if(equals(items('Loop_Update_Items')?['userRemoved'], true), 'userRemoved reset to false; ', ''))",
+                              "Timestamp": "@utcNow()"
+                            }
+                          },
+                          "runAfter": {
+                            "Append_Results_To_Users_": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "f6a7b8c9-d0e1-2345-f012-678901234567"
+                          }
+                        },
+                        "Track_Failed_Update_1": {
+                          "type": "AppendToArrayVariable",
+                          "inputs": {
+                            "name": "varFailedUpdates",
+                            "value": {
+                              "ID": "@items('Loop_Update_Items')?['ID']",
+                              "Naam": "@coalesce(items('Loop_Update_Items')?['Naam'], items('Loop_Update_Items')?['MedewerkerKuijpers_DisplayName'], 'Naam Onbekend')",
+                              "Email": "@coalesce(items('Loop_Update_Items')?['Email'], items('Loop_Update_Items')?['MedewerkerKuijpers_Email'], 'Email Onbekend')",
+                              "UPN": "@items('Loop_Update_Items')['azureUser']['UPN']",
+                              "ErrorMessage": "@outputs('SharePoint_Update_EmployeeItem')?['error']?['message']",
+                              "ErrorCode": "@outputs('SharePoint_Update_EmployeeItem')?['error']?['code']",
+                              "AttemptedChanges": "@concat(if(and(not(empty(items('Loop_Update_Items')?['Birthday'])), not(equals(formatDateTime(items('Loop_Update_Items')?['Birthday'], 'd MMMM', 'nl-NL'), items('Loop_Update_Items')['azureUser']['BirthdayFormatted']))), 'Birthday; ', ''), if(and(not(empty(items('Loop_Update_Items')?['HireDate'])), not(equals(formatDateTime(items('Loop_Update_Items')?['HireDate'], 'd MMMM yyyy', 'nl-NL'), items('Loop_Update_Items')['azureUser']['HireDateFormatted']))), 'HireDate; ', ''), if(equals(items('Loop_Update_Items')?['userRemoved'], true), 'userRemoved; ', ''), 'MedewerkerKuijpers/Claims')",
+                              "Timestamp": "@utcNow()"
+                            }
+                          },
+                          "runAfter": {
+                            "Track_Successful_Update": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "a7b8c9d0-e1f2-3456-0123-789012345678"
+                          }
+                        }
+                      },
+                      "else": {
+                        "actions": {}
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "Loop_Mark_Removed": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "62294013-99d2-4cb1-8640-337582a5ab63"
+                  }
+                }
+              },
+              "metadata": {
+                "operationMetadataId": "1f562c58-2b08-4ce6-87dd-5fe7a01e6231"
+              }
+            },
+            "Catch_Update_AzureData": {
+              "type": "Scope",
+              "actions": {
+                "Log_errors_Scope_Update_AzureData": {
+                  "type": "Compose",
+                  "inputs": "@outputs('Try_Update_AzureData')?['error']",
+                  "metadata": {
+                    "operationMetadataId": "70d20eac-f56f-403c-b7cf-ae74dc324c25"
+                  }
+                }
+              },
+              "runAfter": {
+                "Try_Update_AzureData": [
+                  "Failed"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "89b1e4b7-f8ec-472e-9df7-02fd4df3638e"
+              }
+            }
+          },
+          "runAfter": {
+            "Filter_ItemsToMarkRemoved": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "f7410201-87e1-43ef-92a0-7c330616d626"
+          }
+        },
+        "Select_SharePointBadges": {
+          "type": "Select",
+          "inputs": {
+            "from": "@variables('SharePointItems')",
+            "select": "@item()?['Badgenummer']"
+          },
+          "runAfter": {
+            "Create_array_of_Trainingsdata_Intelex_SharePointItems": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "059d93dc-000b-4f9a-885c-d3f4a2833445"
+          }
+        },
+        "Select_ExternalBadges": {
+          "type": "Select",
+          "inputs": {
+            "from": "@variables('Intelex')",
+            "select": "@Item()?['Intelex.BadgeNumber']"
+          },
+          "runAfter": {
+            "Select_SharePointBadges": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "81b04c82-d563-4bc4-be59-c7abb3639af1"
+          }
+        },
+        "Create_array_of_Trainingsdata_Intelex_SharePointItems": {
+          "type": "Compose",
+          "inputs": "@createArray(variables('SharePointItems'),variables('Intelex'),variables('Trainingsdata'))",
+          "runAfter": {
+            "Initialize_BatchUpdateAzureAD": [
+              "Succeeded"
+            ],
+            "Initialize_BatchUpdateBadgenummers": [
+              "Succeeded"
+            ],
+            "Initialize_varSuccessfulUpdates": [
+              "Succeeded"
+            ],
+            "Initialize_varFailedUpdates": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "3968f7d7-6d70-4adc-8147-800cda74f853"
+          }
+        },
+        "Initialize_varBatchUpdateBadgenummersFailureCount": {
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "varBatchUpdateBadgenummersFailureCount",
+                "type": "integer",
+                "value": 0
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_varBatchUpdateBadgenummersPartialFailures": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "5d6bccd7-e086-4cdc-ba5c-6fbaf9d74158"
+          }
+        },
+        "Initialize_varBatchUpdateTrainingsdataResults": {
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "varBatchUpdateTrainingsdataResults",
+                "type": "array",
+                "value": []
+              }
+            ]
+          },
+          "runAfter": {
+            "Debug_3_After_Trainingsdata_Load": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "4caf5872-f86d-4e82-8bec-6d81db30d48e"
+          }
+        },
+        "Initialize_varBatchUpdateBadgenummersResults": {
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "varBatchUpdateBadgenummersResults",
+                "type": "array",
+                "value": []
+              }
+            ]
+          },
+          "runAfter": {
+            "Debug_2_After_Intelex_Load": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "6503f362-5bed-42ab-85b6-3a1173b1f401"
+          }
+        },
+        "Initialize_varBatchUpdateTrainingsdataFailureCount": {
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "varBatchUpdateTrainingsdataFailureCount",
+                "type": "integer",
+                "value": 0
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_varBatchUpdateTrainingsdataPartialFailures": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "a61ab9a2-bc1a-4e53-98e7-7845f6813f2f"
+          }
+        },
+        "Initialize_varBatchUpdateTrainingsdataSuccesCount": {
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "varBatchUpdateTrainingsdataSuccesCount",
+                "type": "integer",
+                "value": 0
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_varBatchUpdateTrainingsdataFailureCount": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "8ac602a4-2c67-4d2a-8000-7e9f7838d86c"
+          }
+        },
+        "Initialize_varBatchUpdateBadgenummersErrors": {
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "varBatchUpdateBadgenummersErrors",
+                "type": "array",
+                "value": []
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_varBatchUpdateBadgenummersResults": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "561cd34d-885b-48e7-90ee-336923c1d79f"
+          }
+        },
+        "Initialize_varBatchUpdateBadgenummersSuccessCount": {
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "varBatchUpdateBadgenummersSuccessCount",
+                "type": "integer",
+                "value": 0
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_varBatchUpdateBadgenummersFailureCount": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "ee864f19-f614-4695-abb7-1346ea3a0350"
+          }
+        },
+        "Initialize_varBatchUpdateTrainingsdataErrors_": {
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "varBatchUpdateTrainingsdataErrors",
+                "type": "array",
+                "value": []
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_varBatchUpdateTrainingsdataResults": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "0f7e94a4-f1a1-40f1-8218-783283f8c74a"
+          }
+        },
+        "Initialize_AzureAD": {
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "AzureAD",
+                "type": "array",
+                "value": []
+              }
+            ]
+          },
+          "runAfter": {
+            "Debug_1_After_SharePoint_Load": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "ff56c8f2-0685-4733-9acd-baaac8471fef"
+          }
+        },
+        "Initialize_Intelex": {
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "Intelex",
+                "type": "array",
+                "value": "@body('Create_NewObject_with_Intelex_Kuijpers_Employees')"
+              }
+            ]
+          },
+          "runAfter": {
+            "Scope_Intelex_Badgenummers": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "1d53bb04-b5a2-4993-aff8-c7100518874e"
+          }
+        },
+        "Initialize_Trainingsdata": {
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "Trainingsdata",
+                "type": "array",
+                "value": "@body('Create_NewObject_with_all_Trainingsdata')"
+              }
+            ]
+          },
+          "runAfter": {
+            "Scope_ASML_Trainingsdata": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "63b93c9c-6e7e-4d8d-a0d6-08e184e3e220"
+          }
+        },
+        "Initialize_BatchUpdateTrainingsdata": {
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "varBatchUpdateTrainingsdata",
+                "type": "array",
+                "value": []
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_varBatchUpdateTrainingsdataSuccesCount": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "803e61aa-7c83-401c-8354-47ff4bb1f8f2"
+          }
+        },
+        "Initialize_BatchUpdateBadgenummers": {
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "varBatchUpdateBadgenummers",
+                "type": "array",
+                "value": []
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_varBatchUpdateBadgenummersSuccessCount": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "ddc08df2-4e1c-4a52-9c25-599b4e1e30de"
+          }
+        },
+        "Initialize_PairedData_Array": {
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "varPairedData",
+                "type": "array",
+                "value": []
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_SkippedUsers_Array": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "c4fbc93c-b927-44a4-8d20-bba748f6565c"
+          }
+        },
+        "Initialize_BatchUpdateAzureAD": {
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "varBatchUpdateAzureAD",
+                "type": "array",
+                "value": []
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_BatchResults_Array": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "784f53be-bf92-4609-be5b-3043249b1567"
+          }
+        },
+        "Initialize_varBatchUpdateBadgenummersPartialFailures": {
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "varBatchUpdateBadgenummersPartialFailures",
+                "type": "array",
+                "value": []
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_varBatchUpdateBadgenummersErrors": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "46e62730-6490-48a3-bf2c-95ae83026757"
+          }
+        },
+        "Initialize_varBatchUpdateTrainingsdataPartialFailures": {
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "varBatchUpdateTrainingsdataPartialFailures",
+                "type": "array",
+                "value": []
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_varBatchUpdateTrainingsdataErrors_": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "c6bc8a48-7613-4044-b280-b5854dbe1c8a"
+          }
+        },
+        "Initialize_varSkippedEmptyNaamCount": {
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "varSkippedEmptyNaamCount",
+                "type": "integer",
+                "value": 0
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_varBatchUpdateTrainingsdataPartialFailures": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+          }
+        },
+        "Initialize_varCacheHitsCount": {
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "varCacheHitsCount",
+                "type": "integer",
+                "value": 0
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_varSkippedEmptyNaamCount": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "b2c3d4e5-f6a7-8901-bcde-f23456789012"
+          }
+        },
+        "Initialize_varCacheMissesCount": {
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "varCacheMissesCount",
+                "type": "integer",
+                "value": 0
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_varCacheHitsCount": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "c3d4e5f6-a7b8-9012-cdef-123456789013"
+          }
+        },
+        "Initialize_varFailedUpdates": {
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "varFailedUpdates",
+                "type": "array",
+                "value": []
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_varTRData": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "e5f6a7b8-c9d0-1234-ef01-567890123456"
+          }
+        },
+        "debugMode": {
+          "type": "Compose",
+          "inputs": false,
+          "runAfter": {},
+          "metadata": {
+            "operationMetadataId": "5b1e24a8-0a5d-4adf-9be9-537422e6d07b"
+          }
+        },
+        "Create_Error_Summary_Update_Badgenummers": {
+          "type": "Compose",
+          "inputs": "@if(equals(outputs('debugMode'),true),'Debug Mode is Active, no Error Logging',json(concat(\r\n  '{',\r\n  '\"📝 Error Summary Update Badgenummers\": {',\r\n    '\"totalSuccess\": ', string(variables('varBatchUpdateBadgenummersSuccessCount')), ',',\r\n    '\"totalFailures\": ', string(variables('varBatchUpdateBadgenummersFailureCount')), ',',\r\n    '\"partialFailures\": ', string(length(variables('varBatchUpdateBadgenummersPartialFailures'))), ',',\r\n    '\"skippedEmptyNaam\": ', string(variables('varSkippedEmptyNaamCount')), ',',\r\n    '\"cacheHits\": ', string(variables('varCacheHitsCount')), ',',\r\n    '\"cacheMisses\": ', string(variables('varCacheMissesCount')), ',',\r\n    '\"errors\": ', string(variables('varBatchUpdateBadgenummersErrors')),\r\n  '}',\r\n  '}'\r\n)))\r\n",
+          "runAfter": {
+            "Scope_Update_Badgenummers": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "3166c6d8-eeae-4c84-b431-267c823bf789"
+          }
+        },
+        "Initialize_varSuccessfulUpdates": {
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "varSuccessfulUpdates",
+                "type": "array",
+                "value": []
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_BatchUpdateTrainingsdata": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "d4e5f6a7-b8c9-0123-def0-456789012345"
+          }
+        },
+        "Terminate_Failed_🔴": {
+          "type": "Terminate",
+          "inputs": {
+            "runStatus": "Failed"
+          },
+          "runAfter": {
+            "Scope_Update_AzureData": [
+              "Failed"
+            ],
+            "Scope_Update_Trainingsdata": [
+              "Failed"
+            ],
+            "Scope_ASML_Trainingsdata": [
+              "Failed"
+            ],
+            "Scope_Intelex_Badgenummers": [
+              "Failed"
+            ],
+            "Scope_Badgeregistratielijst": [
+              "Failed"
+            ],
+            "Scope_Retrieve_Azure_AD_Userdata": [
+              "Failed"
+            ],
+            "Scope_Update_Badgenummers": [
+              "Failed"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "f73df257-dd64-4960-84d0-004a42f16d67"
+          }
+        },
+        "Send_Run_Summary_Email": {
+          "type": "OpenApiConnection",
+          "inputs": {
+            "parameters": {
+              "emailMessage/To": "@if(equals(outputs('debugMode'), true), 'mmeurs@kuijpers.com', 'scr_asml_powerautom@kuijpers.com')",
+              "emailMessage/Subject": "@concat(if(equals(outputs('debugMode'), true), '🔍 WHATIF PREVIEW: ', if(greater(length(variables('varFailedUpdates')), 0), '❌ ', '✅ ')), 'KVA Badge Sync Report - ', formatDateTime(convertFromUtc(utcNow(), 'W. Europe Standard Time'), 'yyyy-MM-dd HH:mm'), if(greater(length(variables('varFailedUpdates')), 0), concat(' - ', string(length(variables('varFailedUpdates'))), ' ERRORS'), ''), if(equals(outputs('debugMode'), true), ' [No Changes Written]', ''))",
+              "emailMessage/Body": "<p class=\"editor-paragraph\">@{outputs('Compose_HTML_Report_Body')}</p>"
+            },
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+              "operationId": "SendEmailV2",
+              "connectionName": "shared_office365"
+            }
+          },
+          "runAfter": {
+            "Compose_HTML_Report_Body": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "a8b9c0d1-e2f3-4567-8901-234567890123"
+          }
+        },
+        "Terminate_Succeeded_🟢": {
+          "type": "Terminate",
+          "inputs": {
+            "runStatus": "Succeeded"
+          },
+          "runAfter": {
+            "Send_Run_Summary_Email": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "6b90357a-0627-4e36-80ef-9280c9504611"
+          }
+        },
+        "Output_varSkippedUsers": {
+          "type": "Compose",
+          "inputs": "@variables('varSkippedUsers')",
+          "runAfter": {
+            "Scope_ASML_Trainingsdata": [
+              "Succeeded"
+            ],
+            "Scope_Intelex_Badgenummers": [
+              "Succeeded"
+            ],
+            "Scope_Badgeregistratielijst": [
+              "Succeeded"
+            ],
+            "Scope_Retrieve_Azure_AD_Userdata": [
+              "Succeeded"
+            ],
+            "Scope_Update_Trainingsdata": [
+              "Succeeded"
+            ],
+            "Scope_Update_AzureData": [
+              "Succeeded"
+            ],
+            "Scope_Update_Badgenummers": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "367c3d12-c320-4539-8bf0-cca92eef66a5"
+          }
+        },
+        "Select_SkippedUsers_PlainText": {
+          "type": "Select",
+          "inputs": {
+            "from": "@body('Filter_SkippedUsers_WithData')",
+            "select": "@concat('- ', item()?['Name'], ' (', item()?['Email'], ')')"
+          },
+          "runAfter": {
+            "Select_SkippedUsers_Display": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "plaintext-select-users-metadata"
+          }
+        },
+        "Compose_HTML_Report_Body": {
+          "type": "Compose",
+          "inputs": "<!DOCTYPE html>\n<html lang=\"nl\">\n\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width,initial-scale=1.0\">\n  <title>KVA Badge Sync Report</title>\n  <style>\n    body {\n      font-family: \"Segoe UI\", \"Fluent UI\", Arial, sans-serif;\n      margin: 0;\n      padding: 20px;\n      background: #f5f5f5;\n      color: #242424\n    }\n\n    .container {\n      max-width: 900px;\n      margin: 0 auto;\n      background: #fff;\n      border: 1px solid #e0e0e0;\n      border-radius: 8px;\n      box-shadow: 0 4px 12px rgba(0, 0, 0, .05)\n    }\n\n    .header {\n      text-align: left;\n      padding: 24px 32px;\n      border-bottom: 1px solid #e0e0e0\n    }\n\n    .header h1 {\n      font-size: 24px;\n      font-weight: 600;\n      margin: 0 0 4px;\n      color: #115EA3\n    }\n\n    .header p {\n      color: #616161;\n      margin: 0;\n      font-size: 14px\n    }\n\n    .counters {\n      padding: 24px 32px;\n      text-align: center\n    }\n\n    .counter {\n      display: inline-block;\n      width: 23%;\n      min-width: 160px;\n      margin: 6px 1%;\n      padding: 14px;\n      border-radius: 8px;\n      border: 1px solid #e0e0e0;\n      background: #f9f9f9;\n      box-sizing: border-box;\n      text-align: center\n    }\n\n    .counter .label {\n      font-size: 12px;\n      text-transform: uppercase;\n      color: #616161;\n      margin-bottom: 6px\n    }\n\n    .counter .value {\n      font-size: 32px;\n      font-weight: 700\n    }\n\n    .counter.success {\n      border-color: #9FD89C;\n      background: #DFF6DD\n    }\n\n    .counter.success .value {\n      color: #107C10\n    }\n\n    .counter.error {\n      border-color: #F1A0A5;\n      background: #FDE7E9\n    }\n\n    .counter.error .value {\n      color: #C50F1F\n    }\n\n    .counter.warning {\n      border-color: #F8D575;\n      background: #FFF4CE\n    }\n\n    .counter.warning .value {\n      color: #8A6A0A\n    }\n\n    .counter.info {\n      border-color: #BFD9FF;\n      background: #EFF6FF\n    }\n\n    .counter.info .value {\n      color: #115EA3\n    }\n\n    .divider {\n      height: 1px;\n      background: #e0e0e0;\n      margin: 0 32px\n    }\n\n    .section {\n      padding: 24px 32px\n    }\n\n    .section-header {\n      padding-bottom: 16px;\n      margin-bottom: 16px;\n      border-bottom: 1px solid #e0e0e0\n    }\n\n    .section-header h2 {\n      font-size: 18px;\n      font-weight: 600;\n      margin: 0 0 4px\n    }\n\n    .section-header p {\n      font-size: 14px;\n      color: #616161;\n      margin: 0\n    }\n\n    .action-link {\n      float: right;\n      font-size: 14px;\n      text-decoration: none;\n      color: #115EA3\n    }\n\n    .action-link:hover {\n      text-decoration: underline\n    }\n\n    table {\n      width: 100%;\n      border-collapse: collapse;\n      margin: 20px 0\n    }\n\n    th {\n      background: #f0f6ff;\n      color: #115EA3;\n      padding: 12px;\n      text-align: left;\n      font-weight: 600;\n      border-bottom: 2px solid #115EA3\n    }\n\n    td {\n      padding: 12px;\n      border-bottom: 1px solid #e0e0e0\n    }\n\n    tr:nth-child(even) {\n      background: #fafafa\n    }\n\n    .link {\n      color: #115EA3;\n      text-decoration: none;\n      font-weight: 600\n    }\n\n    .link:hover {\n      text-decoration: underline\n    }\n\n    .btn {\n      display: inline-block;\n      background: #115EA3;\n      color: #fff !important;\n      padding: 10px 16px;\n      border-radius: 6px;\n      text-decoration: none;\n      font-weight: 600\n    }\n\n    .timestamp {\n      text-align: center;\n      color: #616161;\n      font-size: 12px;\n      padding: 24px 32px;\n      background: #f9f9f9;\n      border-top: 1px solid #e0e0e0\n    }\n\n    .debug-banner {\n      padding: 20px 32px;\n      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);\n      color: white;\n      font-weight: 700;\n      font-size: 16px;\n      text-align: center;\n      border-bottom: 3px solid #5568d3;\n      box-shadow: 0 4px 6px rgba(0,0,0,0.1)\n    }\n\n    .whatif-info {\n      margin-top: 8px;\n      font-size: 14px;\n      font-weight: 400;\n      opacity: 0.95\n    }\n  </style>\n</head>\n\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>@{if(bool(outputs('debugMode')),'� WHATIF PREVIEW: ','�🔄 ')}KVA Badge Synchronisatie Rapport</h1>\n      <p><strong>Uitvoeringstijd:</strong> @{formatDateTime(convertFromUtc(utcNow(),'W. Europe Standard Time'),'yyyy-MM-dd HH:mm:ss')}</p>\n      <p><strong>SharePoint Lijst:</strong> <a class=\"link\"\n          href=\"https://mijnkuijpers.sharepoint.com/sites/accountteamASML/Lists/KKA%20Beheer%20%20Intelex%20API%20Badgenummers\"\n          target=\"_blank\">KKA Beheer Intelex API Badgenummers</a></p>\n      @{if(bool(outputs('debugMode')),'<p style=\"color:#667eea;font-weight:600;margin-top:12px;\">⚙️ Mode: WhatIf Preview (debugMode = true)</p>','<p style=\"color:#107C10;font-weight:600;margin-top:12px;\">✅ Mode: Production (debugMode = false)</p>')}\n    </div>\n\n    @{if(bool(outputs('debugMode')),'<div class=\"debug-banner\">🔍 WHATIF MODE: Preview Only - No Changes Written<div class=\"whatif-info\">This report shows what WOULD change if debugMode was set to false. No actual updates were made to SharePoint.</div></div>','')}\n\n    <div class=\"counters\">\n      <div class=\"counter success\" style=\"display:inline-block;width:23%;min-width:160px;margin:6px 1%;padding:14px;border-radius:8px;border:1px solid #9FD89C;background:#DFF6DD;box-sizing:border-box;text-align:center\">\n        <div class=\"label\" style=\"font-size:12px;text-transform:uppercase;color:#616161;margin-bottom:6px\">@{if(bool(outputs('debugMode')),'Would Update','Succesvolle Updates')}</div>\n        <div class=\"value\" style=\"font-size:32px;font-weight:700;color:#107C10\">@{string(length(variables('varSuccessfulUpdates')))}</div>\n      </div>\n      <div class=\"counter error\" style=\"display:inline-block;width:23%;min-width:160px;margin:6px 1%;padding:14px;border-radius:8px;border:1px solid #F1A0A5;background:#FDE7E9;box-sizing:border-box;text-align:center\">\n        <div class=\"label\" style=\"font-size:12px;text-transform:uppercase;color:#616161;margin-bottom:6px\">@{if(bool(outputs('debugMode')),'Would Fail','Mislukte Updates')}</div>\n        <div class=\"value\" style=\"font-size:32px;font-weight:700;color:#C50F1F\">@{string(length(variables('varFailedUpdates')))}</div>\n      </div>\n      <div class=\"counter warning\" style=\"display:inline-block;width:23%;min-width:160px;margin:6px 1%;padding:14px;border-radius:8px;border:1px solid #F8D575;background:#FFF4CE;box-sizing:border-box;text-align:center\">\n        <div class=\"label\" style=\"font-size:12px;text-transform:uppercase;color:#616161;margin-bottom:6px\">Overgeslagen (Leeg)</div>\n        <div class=\"value\" style=\"font-size:32px;font-weight:700;color:#8A6A0A\">@{string(variables('varSkippedEmptyNaamCount'))}</div>\n      </div>\n      <div class=\"counter info\" style=\"display:inline-block;width:23%;min-width:160px;margin:6px 1%;padding:14px;border-radius:8px;border:1px solid #BFD9FF;background:#EFF6FF;box-sizing:border-box;text-align:center\">\n        <div class=\"label\" style=\"font-size:12px;text-transform:uppercase;color:#616161;margin-bottom:6px\">Actie Nodig (Verwijderd)</div>\n        <div class=\"value\" style=\"font-size:32px;font-weight:700;color:#115EA3\">@{string(length(body('Filter_SkippedUsers_WithData')))}</div>\n      </div>\n    </div>\n    <div class=\"divider\"></div>\n\n    @{if(greater(length(variables('varSuccessfulUpdates')),0),\n    concat('<div class=\"section\">\n        <div class=\"section-header\">\n          <h2>',if(bool(outputs('debugMode')),'🔍 Items That Would Be Updated','✅ Succesvolle Updates'),' (',string(length(variables('varSuccessfulUpdates'))),')</h2>\n          <p>',if(bool(outputs('debugMode')),'Deze items zouden worden bijgewerkt als debugMode=false.','Deze items zijn succesvol bijgewerkt in SharePoint.'),'</p>\n        </div>\n        <table>\n          <thead>\n            <tr>\n              <th>ID</th>\n              <th>Naam</th>\n              <th>Email</th>\n              <th>Wijzigingen</th>\n              <th>Tijd</th>\n            </tr>\n          </thead>\n          <tbody>',join(body('Create_Success_Table_Rows'),''),'</tbody>\n        </table>\n      </div>\n      <div class=\"divider\"></div>'),'')}\n\n    @{if(greater(length(variables('varFailedUpdates')),0),\n    concat('<div class=\"section\">\n        <div class=\"section-header\">\n          <h2>❌ Mislukte Updates (',string(length(variables('varFailedUpdates'))),')</h2>\n          <p>Deze items konden niet worden bijgewerkt. Controleer de foutmelding.</p>\n        </div>\n        <table>\n          <thead>\n            <tr>\n              <th>ID</th>\n              <th>Naam</th>\n              <th>Email</th>\n              <th>Foutdetails</th>\n              <th>Pogingen</th>\n              <th>Tijd</th>\n            </tr>\n          </thead>\n          <tbody>',join(body('Create_Failure_Table_Rows'),''),'</tbody>\n        </table>\n      </div>\n      <div class=\"divider\"></div>'),'')}\n\n    @{if(greater(length(body('Filter_SkippedUsers_WithData')),0),\n    concat('<div class=\"section\">\n        <div class=\"section-header\"><a class=\"action-link\"\n            href=\"https://mijnkuijpers.sharepoint.com/sites/accountteamASML/Lists/KKA%20Beheer%20%20Intelex%20API%20Badgenummers/AllItems.aspx?useFiltersInViewXml=1&amp;filterField1=userRemoved&amp;filterOp1=Eq&amp;filterValue1=1\"\n            target=\"_blank\">Bekijk gefilterde lijst ↗</a>\n          <h2>👥 Actie Nodig: Verwijderde Gebruikers (',string(length(body('Filter_SkippedUsers_WithData'))),')</h2>\n          <p>Deze gebruikers zijn gemarkeerd als verwijderd (niet gevonden in Azure AD).</p>\n        </div>\n        <table>\n          <thead>\n            <tr>\n              <th>Naam</th>\n              <th>Email</th>\n            </tr>\n          </thead>\n          <tbody>',join(body('Select_SkippedUsers_Display'),''),'</tbody>\n        </table>\n        <p style=\"margin-top:20px\"><strong>Actie:</strong> Verwijder deze gebruikers uit de security groep\n          <code>G-SEC-GPRJ-ASML</code>.\n        </p>\n        <p><a class=\"btn\"\n            href=\"mailto:servicedesk@kuijpers.com?subject=Verzoek%20tot%20verwijdering%20',string(length(body('Filter_SkippedUsers_WithData'))),'%20gebruikers%20uit%20security%20groep%20G-SEC-GPRJ-ASML&amp;body=',encodeUriComponent(outputs('Compose_email_body')),'\">✉️\n            E-mail Servicedesk</a></p>\n      </div>\n      <div class=\"divider\"></div>'),'')}\n\n    @{if(greater(variables('varSkippedEmptyNaamCount'), 0),\n    concat('<div class=\"section\">\n        <div class=\"section-header\"><a class=\"action-link\"\n            href=\"https://mijnkuijpers.sharepoint.com/sites/accountteamASML/Lists/KKA%20Beheer%20%20Intelex%20API%20Badgenummers/AllItems.aspx?useFiltersInViewXml=1&amp;filterField1=Naam&amp;filterOp1=Eq&amp;filterValue1=\"\n            target=\"_blank\">Bekijk gefilterde lijst ↗</a>\n          <h2>⚠️ Overgeslagen Items (',string(variables('varSkippedEmptyNaamCount')),')</h2>\n          <p>Deze items zijn overgeslagen omdat het \"Naam\"-veld leeg was. Vul dit\n            veld aan in SharePoint.</p>\n        </div>\n      </div>\n      <div class=\"divider\"></div>'),'')}\n\n    <div class=\"section\">\n      <div class=\"section-header\">\n        <h2>📊 Performance Insights</h2>\n      </div>\n      <ul style=\"font-size:14px;color:#616161;line-height:1.6\">\n        <li>Cache hit rate: <strong>@{if(equals(add(variables('varCacheHitsCount'),variables('varCacheMissesCount')),0),'0',formatNumber(div(mul(variables('varCacheHitsCount'),100.0),add(variables('varCacheHitsCount'),variables('varCacheMissesCount'))),'0.#'))}%</strong> (Intelex API)</li>\n        <li>Totaal <strong>@{string(add(variables('varCacheHitsCount'),variables('varCacheMissesCount')))}</strong>\n          items in ca. <strong>@{if(equals(add(variables('varCacheHitsCount'),variables('varCacheMissesCount')),0),'0',formatNumber(div(add(variables('varCacheHitsCount'),variables('varCacheMissesCount')),10.0),'0.#'))}</strong> sec.</li>\n      </ul>\n    </div>\n    <div class=\"timestamp\">Report generated by KVA Badge Sync Flow | © @{formatDateTime(utcNow(),'yyyy')} Kuijpers\n      Projecten B,V, | Klantvestiging ASML</div>\n  </div>\n</body>\n\n</html>",
+          "runAfter": {
+            "Compose_email_body": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "33c66861-ef74-4383-b237-6c8ea6546e27"
+          }
+        },
+        "Compose_email_body": {
+          "type": "Compose",
+          "inputs": "@{concat('Beste collega,%0D%0A%0D%0AIk wil graag verzoeken om onderstaande gebruikers uit de security groep “G-SEC-GPRJ-ASML” (ID: 8aa9eb90-b82a-475e-9702-14617a75f328) te verwijderen. Deze gebruikers zijn niet meer werkzaam bij Kuijpers maar zijn nog wel gekoppeld aan deze groep:%0D%0A%0D%0A', join(body('Select_SkippedUsers_PlainText'), '%0D%0A'), '%0D%0A%0D%0AAlvast hartelijk dank voor jullie medewerking en begrip.')}\n",
+          "runAfter": {
+            "Select_SkippedUsers_PlainText": [
+              "Succeeded"
+            ]
+          }
+        },
+        "Filter_SkippedUsers_WithData": {
+          "type": "Query",
+          "inputs": {
+            "from": "@variables('varSkippedUsers')",
+            "where": "@and(not(empty(item()?['Name'])), not(empty(item()?['Email'])))"
+          },
+          "runAfter": {
+            "Create_Error_Summary_Update_Badgenummers": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "filter-skipped-users-metadata"
+          }
+        },
+        "Select_SkippedUsers_Display": {
+          "type": "Select",
+          "inputs": {
+            "from": "@body('Filter_SkippedUsers_WithData')",
+            "select": "@concat('<tr><td style=\"border: 1px solid #ddd; padding: 8px;\">', item()?['Name'], '</td><td style=\"border: 1px solid #ddd; padding: 8px;\">', item()?['Email'], '</td></tr>')"
+          },
+          "runAfter": {
+            "Create_Success_Table_Rows": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "2544aed7-e2e5-4f6b-bfcb-e5ebcd059497"
+          }
+        },
+        "Create_Success_Table_Rows": {
+          "type": "Select",
+          "inputs": {
+            "from": "@variables('varSuccessfulUpdates')",
+            "select": "@concat('<tr><td><a href=\"https://mijnkuijpers.sharepoint.com/sites/accountteamASML/Lists/KKA%20Beheer%20%20Intelex%20API%20Badgenummers/DispForm.aspx?ID=', string(item()['ID']), '\" class=\"link\" target=\"_blank\">', string(item()['ID']), '</a></td><td>', coalesce(item()['Naam'], 'Naam Onbekend'), '</td><td>', coalesce(item()['Email'], 'Email Onbekend'), '</td><td>', coalesce(item()['Changes'], 'Geen wijzigingen'), '</td><td>', formatDateTime(item()['Timestamp'], 'HH:mm:ss'), '</td></tr>')"
+          },
+          "runAfter": {
+            "Create_Failure_Table_Rows": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "b1c2d3e4-f5a6-7890-b1c2-d3e4f5a67890"
+          }
+        },
+        "Create_Failure_Table_Rows": {
+          "type": "Select",
+          "inputs": {
+            "from": "@variables('varFailedUpdates')",
+            "select": "@concat('<tr><td><a href=\"https://mijnkuijpers.sharepoint.com/sites/accountteamASML/Lists/KKA%20Beheer%20%20Intelex%20API%20Badgenummers/DispForm.aspx?ID=', string(item()['ID']), '\" class=\"link\" target=\"_blank\">', string(item()['ID']), '</a></td><td>', coalesce(item()['Naam'], 'Naam Onbekend'), '</td><td>', coalesce(item()['Email'], 'Email Onbekend'), '</td><td><div class=\"error-item\"><strong>Error:</strong> ', coalesce(item()['ErrorMessage'], 'Unknown error'), '<br><strong>Code:</strong> ', coalesce(string(item()['ErrorCode']), ''), '</div></td><td>', coalesce(item()['AttemptedChanges'], 'N/A'), '</td><td>', formatDateTime(convertFromUtc(item()['Timestamp'], 'W. Europe Standard Time'), 'HH:mm:ss'), '</td></tr>')"
+          },
+          "runAfter": {
+            "Filter_SkippedUsers_WithData": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "c2d3e4f5-a6b7-8901-c2d3-e4f5a6b78901"
+          }
+        },
+        "Debug_6_Before_Trainingsdata_Update": {
+          "type": "Compose",
+          "inputs": {
+            "batchCount": "@{length(variables('varBatchUpdateTrainingsdata'))}",
+            "timestamp": "@{utcNow()}",
+            "sampleBatchItem": "@{if(greater(length(variables('varBatchUpdateTrainingsdata')),0),variables('varBatchUpdateTrainingsdata')[0],null)}",
+            "phase": "6-Before-Trainingsdata-Update"
+          },
+          "runAfter": {
+            "Scope_Update_Trainingsdata": [
+              "Succeeded",
+              "Failed"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "debug-trainingsdata-002"
+          }
+        },
+        "Debug_4_After_AzureAD_Retrieval": {
+          "type": "Compose",
+          "inputs": {
+            "sampleUser": "@{if(greater(length(variables('AzureAD')),0),variables('AzureAD')[0],null)}",
+            "timestamp": "@{utcNow()}",
+            "totalUsers": "@{length(variables('AzureAD'))}",
+            "batchUsersCount": "@{length(variables('varBatchUsers'))}",
+            "phase": "4-AzureAD-Users-Retrieved"
+          },
+          "runAfter": {
+            "Set_variable:_AzureAD": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "debug-azuread-001"
+          }
+        },
+        "Debug_7_Before_AzureData_Update": {
+          "type": "Compose",
+          "inputs": {
+            "timestamp": "@{utcNow()}",
+            "itemsToMarkRemoved": "@{length(body('Filter_ItemsToMarkRemoved'))}",
+            "azureUPNs": "@{length(body('Select_AzureUPNs'))}",
+            "phase": "7-Before-AzureData-Update"
+          },
+          "runAfter": {
+            "Scope_Update_AzureData": [
+              "Succeeded",
+              "Failed"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "debug-azuredata-001"
+          }
+        },
+        "Debug_5_Before_Badgenummers_Update": {
+          "type": "Compose",
+          "inputs": {
+            "timestamp": "@{utcNow()}",
+            "cacheMisses": "@{variables('varCacheMissesCount')}",
+            "sampleBatchItem": "@{if(greater(length(variables('varBatchUpdateBadgenummers')),0),variables('varBatchUpdateBadgenummers')[0],null)}",
+            "batchCount": "@{length(variables('varBatchUpdateBadgenummers'))}",
+            "phase": "5-Before-Badgenummers-Update",
+            "cacheHits": "@{variables('varCacheHitsCount')}"
+          },
+          "runAfter": {
+            "Scope_Update_Badgenummers": [
+              "Succeeded",
+              "Failed"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "debug-badgenummers-001"
+          }
+        },
+        "Collect_All_Debug_Data": {
+          "type": "Compose",
+          "inputs": {
+            "runTimestamp": "@utcNow()",
+            "phase1_SharePoint": "@outputs('Debug_1_After_SharePoint_Load')",
+            "phase2_Intelex": "@outputs('Debug_2_After_Intelex_Load')",
+            "phase3_Trainingsdata": "@outputs('Debug_3_After_Trainingsdata_Load')",
+            "phase4_AzureAD": "@outputs('Debug_4_After_AzureAD_Retrieval')",
+            "phase5_BadgeUpdate": "@outputs('Debug_5_Before_Badgenummers_Update')",
+            "phase6_TrainingsUpdate": "@outputs('Debug_6_Before_Trainingsdata_Update')",
+            "phase7_AzureDataUpdate": "@outputs('Debug_7_Before_AzureData_Update')",
+            "matchingStats": {
+              "totalIntelexBadges": "@length(outputs('Select_ExternalBadges')?['body'])",
+              "totalSharePointBadges": "@length(outputs('Select_SharePointBadges')?['body'])",
+              "matchingBadges": "@length(outputs('Select_Matching_Badgenummers'))",
+              "nonExistingBadges": "@length(outputs('Select_Non-Existing_Badgenummers')?['body'])"
+            }
+          },
+          "runAfter": {
+            "Debug_7_Before_AzureData_Update": [
+              "Succeeded",
+              "Failed",
+              "Skipped"
+            ],
+            "Debug_4_After_AzureAD_Retrieval": [
+              "Succeeded",
+              "Failed",
+              "Skipped"
+            ],
+            "Debug_5_Before_Badgenummers_Update": [
+              "Succeeded",
+              "Failed",
+              "Skipped"
+            ],
+            "Debug_6_Before_Trainingsdata_Update": [
+              "Succeeded",
+              "Failed",
+              "Skipped"
+            ],
+            "Debug_1_After_SharePoint_Load": [
+              "Succeeded",
+              "Failed",
+              "Skipped"
+            ],
+            "Debug_2_After_Intelex_Load": [
+              "Succeeded",
+              "Failed",
+              "Skipped"
+            ],
+            "Debug_3_After_Trainingsdata_Load": [
+              "Succeeded",
+              "Failed",
+              "Skipped"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "collect-debug-data-001"
+          }
+        },
+        "Send_Debug_Report_Email": {
+          "type": "OpenApiConnection",
+          "inputs": {
+            "parameters": {
+              "emailMessage/To": "scr_asml_powerautom@kuijpers.com",
+              "emailMessage/Subject": "🔍 Badge Sync Flow - Debug Report - @{formatDateTime(utcNow(), 'yyyy-MM-dd HH:mm')}",
+              "emailMessage/Body": "<html><head><style>body{font-family:Segoe UI,Arial,sans-serif;background:#f5f5f5;padding:20px}h1{color:#0078d4;border-bottom:3px solid #0078d4;padding-bottom:10px}h2{color:#106ebe;margin-top:30px;border-left:4px solid #0078d4;padding-left:10px}table{width:100%;border-collapse:collapse;background:white;box-shadow:0 2px 4px rgba(0,0,0,0.1);margin:15px 0}th{background:#0078d4;color:white;padding:12px;text-align:left}td{padding:10px;border-bottom:1px solid #e0e0e0}.success{color:#107c10}.warning{color:#ff8c00}.error{color:#d13438}.metric{background:#f0f0f0;padding:8px;border-radius:4px;margin:5px 0}.code{font-family:Consolas,monospace;background:#f5f5f5;padding:2px 6px;border-radius:3px;font-size:90%}</style></head><body><h1>🔍 Badge Sync Flow Debug Report</h1><p><strong>Run Time:</strong> @{formatDateTime(utcNow(), 'dddd, MMMM dd, yyyy HH:mm:ss')} UTC</p><p><strong>Flow Name:</strong> Badge Registration - Sync Intelex Data</p><hr><h2>📊 Phase 1: SharePoint Data Load</h2><table><tr><th>Metric</th><th>Value</th></tr><tr><td>Total Items</td><td class='metric'>@{outputs('Collect_All_Debug_Data')?['phase1_SharePoint']?['totalItems']}</td></tr><tr><td>Sample Item</td><td class='code'>@{outputs('Collect_All_Debug_Data')?['phase1_SharePoint']?['sampleItem']}</td></tr><tr><td>Timestamp</td><td>@{outputs('Collect_All_Debug_Data')?['phase1_SharePoint']?['timestamp']}</td></tr></table><h2>📊 Phase 2: Intelex Data Load</h2><table><tr><th>Metric</th><th>Value</th></tr><tr><td>Total Employees</td><td class='metric'>@{outputs('Collect_All_Debug_Data')?['phase2_Intelex']?['totalEmployees']}</td></tr><tr><td>Sample Employee</td><td class='code'>@{outputs('Collect_All_Debug_Data')?['phase2_Intelex']?['sampleEmployee']}</td></tr><tr><td>Timestamp</td><td>@{outputs('Collect_All_Debug_Data')?['phase2_Intelex']?['timestamp']}</td></tr></table><h2>📊 Phase 3: Training Data Load</h2><table><tr><th>Metric</th><th>Value</th></tr><tr><td>Total Records</td><td class='metric'>@{outputs('Collect_All_Debug_Data')?['phase3_Trainingsdata']?['totalRecords']}</td></tr><tr><td>Sample Record</td><td class='code'>@{outputs('Collect_All_Debug_Data')?['phase3_Trainingsdata']?['sampleRecord']}</td></tr><tr><td>Timestamp</td><td>@{outputs('Collect_All_Debug_Data')?['phase3_Trainingsdata']?['timestamp']}</td></tr></table><h2>📊 Phase 4: Azure AD Data Retrieval</h2><table><tr><th>Metric</th><th>Value</th></tr><tr><td>Total Users</td><td class='metric'>@{outputs('Collect_All_Debug_Data')?['phase4_AzureAD']?['totalUsers']}</td></tr><tr><td>Batch Users Count</td><td class='metric'>@{outputs('Collect_All_Debug_Data')?['phase4_AzureAD']?['batchUsersCount']}</td></tr><tr><td>Sample User</td><td class='code'>@{outputs('Collect_All_Debug_Data')?['phase4_AzureAD']?['sampleUser']}</td></tr><tr><td>Timestamp</td><td>@{outputs('Collect_All_Debug_Data')?['phase4_AzureAD']?['timestamp']}</td></tr></table><h2>📊 Phase 5: Badge Update Preparation</h2><table><tr><th>Metric</th><th>Value</th></tr><tr><td>Batch Count</td><td class='metric'>@{outputs('Collect_All_Debug_Data')?['phase5_BadgeUpdate']?['batchCount']}</td></tr><tr><td>Cache Hits</td><td class='success'>@{outputs('Collect_All_Debug_Data')?['phase5_BadgeUpdate']?['cacheHits']}</td></tr><tr><td>Cache Misses</td><td class='warning'>@{outputs('Collect_All_Debug_Data')?['phase5_BadgeUpdate']?['cacheMisses']}</td></tr><tr><td>Sample Batch Item</td><td class='code'>@{outputs('Collect_All_Debug_Data')?['phase5_BadgeUpdate']?['sampleBatchItem']}</td></tr><tr><td>Timestamp</td><td>@{outputs('Collect_All_Debug_Data')?['phase5_BadgeUpdate']?['timestamp']}</td></tr></table><h2>📊 Phase 6: Training Data Update Preparation</h2><table><tr><th>Metric</th><th>Value</th></tr><tr><td>Batch Count</td><td class='metric'>@{outputs('Collect_All_Debug_Data')?['phase6_TrainingsUpdate']?['batchCount']}</td></tr><tr><td>Sample Batch Item</td><td class='code'>@{outputs('Collect_All_Debug_Data')?['phase6_TrainingsUpdate']?['sampleBatchItem']}</td></tr><tr><td>Timestamp</td><td>@{outputs('Collect_All_Debug_Data')?['phase6_TrainingsUpdate']?['timestamp']}</td></tr></table><h2>📊 Phase 7: Azure Data Update</h2><table><tr><th>Metric</th><th>Value</th></tr><tr><td>Items to Mark Removed</td><td class='metric'>@{outputs('Collect_All_Debug_Data')?['phase7_AzureDataUpdate']?['itemsToMarkRemoved']}</td></tr><tr><td>Azure UPNs</td><td class='metric'>@{outputs('Collect_All_Debug_Data')?['phase7_AzureDataUpdate']?['azureUPNs']}</td></tr><tr><td>Timestamp</td><td>@{outputs('Collect_All_Debug_Data')?['phase7_AzureDataUpdate']?['timestamp']}</td></tr></table><h2>🔍 Matching Statistics</h2><table><tr><th>Metric</th><th>Value</th></tr><tr><td>Total Intelex Badges</td><td class='metric'>@{outputs('Collect_All_Debug_Data')?['matchingStats']?['totalIntelexBadges']}</td></tr><tr><td>Total SharePoint Badges</td><td class='metric'>@{outputs('Collect_All_Debug_Data')?['matchingStats']?['totalSharePointBadges']}</td></tr><tr><td>Matching Badges</td><td class='success'>@{outputs('Collect_All_Debug_Data')?['matchingStats']?['matchingBadges']}</td></tr><tr><td>Non-Existing Badges</td><td class='error'>@{outputs('Collect_All_Debug_Data')?['matchingStats']?['nonExistingBadges']}</td></tr></table><hr><p style='color:#666;font-size:90%;margin-top:30px'>📧 This is an automated debug report generated by Power Automate.<br>7 JSON debug files attached with raw data from each phase.</p></body></html>",
+              "emailMessage/Attachments": [
+                {
+                  "Name": "Debug_Phase1_SharePoint_@{formatDateTime(utcNow(), 'yyyyMMdd_HHmmss')}.json",
+                  "ContentBytes": "@{base64(string(outputs('Collect_All_Debug_Data')?['phase1_SharePoint']))}"
+                },
+                {
+                  "Name": "Debug_Phase2_Intelex_@{formatDateTime(utcNow(), 'yyyyMMdd_HHmmss')}.json",
+                  "ContentBytes": "@{base64(string(outputs('Collect_All_Debug_Data')?['phase2_Intelex']))}"
+                },
+                {
+                  "Name": "Debug_Phase3_Trainingsdata_@{formatDateTime(utcNow(), 'yyyyMMdd_HHmmss')}.json",
+                  "ContentBytes": "@{base64(string(outputs('Collect_All_Debug_Data')?['phase3_Trainingsdata']))}"
+                },
+                {
+                  "Name": "Debug_Phase4_AzureAD_@{formatDateTime(utcNow(), 'yyyyMMdd_HHmmss')}.json",
+                  "ContentBytes": "@{base64(string(outputs('Collect_All_Debug_Data')?['phase4_AzureAD']))}"
+                },
+                {
+                  "Name": "Debug_Phase5_BadgeUpdate_@{formatDateTime(utcNow(), 'yyyyMMdd_HHmmss')}.json",
+                  "ContentBytes": "@{base64(string(outputs('Collect_All_Debug_Data')?['phase5_BadgeUpdate']))}"
+                },
+                {
+                  "Name": "Debug_Phase6_TrainingsUpdate_@{formatDateTime(utcNow(), 'yyyyMMdd_HHmmss')}.json",
+                  "ContentBytes": "@{base64(string(outputs('Collect_All_Debug_Data')?['phase6_TrainingsUpdate']))}"
+                },
+                {
+                  "Name": "Debug_Phase7_AzureDataUpdate_@{formatDateTime(utcNow(), 'yyyyMMdd_HHmmss')}.json",
+                  "ContentBytes": "@{base64(string(outputs('Collect_All_Debug_Data')?['phase7_AzureDataUpdate']))}"
+                }
+              ]
+            },
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+              "operationId": "SendEmailV2",
+              "connectionName": "shared_office365"
+            }
+          },
+          "runAfter": {
+            "Collect_All_Debug_Data": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "send-debug-report-001"
+          }
+        },
+        "Convert_Base64_Data_to_String": {
+          "type": "Compose",
+          "inputs": "@base64ToString(body('Load_TR_Data_JSON')?['$content'])",
+          "runAfter": {
+            "Load_TR_Data_JSON": [
+              "Succeeded"
+            ]
+          }
+        },
+        "Debug_1_After_SharePoint_Load": {
+          "type": "Compose",
+          "inputs": {
+            "totalItems": "@{length(variables('SharePointItems'))}",
+            "timestamp": "@{utcNow()}",
+            "sampleItem": "@{if(greater(length(variables('SharePointItems')),0),variables('SharePointItems')[0],null)}",
+            "phase": "1-SharePoint-Data-Loaded"
+          },
+          "runAfter": {
+            "Initialize_SharePointItems": [
+              "SUCCEEDED"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "debug-sharepoint-001"
+          }
+        },
+        "Debug_2_After_Intelex_Load": {
+          "type": "Compose",
+          "inputs": {
+            "sampleRecord": "@{if(greater(length(variables('Intelex')),0),variables('Intelex')[0],null)}",
+            "timestamp": "@{utcNow()}",
+            "totalRecords": "@{length(variables('Intelex'))}",
+            "phase": "2-Intelex-Data-Loaded"
+          },
+          "runAfter": {
+            "Initialize_Intelex": [
+              "SUCCEEDED"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "debug-intelex-001"
+          }
+        },
+        "Initialize_varTRData": {
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "varTRData",
+                "type": "array",
+                "value": []
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_varCacheMissesCount": [
+              "SUCCEEDED"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "c3d4e5f6-a7b8-9012-cdef-345678901234"
+          }
+        },
+        "Debug_3_After_Trainingsdata_Load": {
+          "type": "Compose",
+          "inputs": {
+            "sampleRecord": "@{if(greater(length(variables('Trainingsdata')),0),variables('Trainingsdata')[0],null)}",
+            "timestamp": "@{utcNow()}",
+            "totalRecords": "@{length(variables('Trainingsdata'))}",
+            "phase": "3-Trainingsdata-Loaded"
+          },
+          "runAfter": {
+            "Initialize_Trainingsdata": [
+              "SUCCEEDED"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "debug-trainingsdata-001"
+          }
+        }
+      },
+      "outputs": {}
+    },
+    "templateName": null
+  },
+  "schemaVersion": "1.0.0.0"
+}

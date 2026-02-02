@@ -1,0 +1,167 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_microsoftforms_1": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "kva_sharedmicrosoftforms_ad6fd"
+        },
+        "api": {
+          "name": "shared_microsoftforms"
+        }
+      },
+      "shared_sharepointonline": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "kva_sharedsharepointonline_2daef"
+        },
+        "api": {
+          "name": "shared_sharepointonline"
+        }
+      },
+      "shared_office365": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "new_sharedoffice365_8b41c"
+        },
+        "api": {
+          "name": "shared_office365"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        }
+      },
+      "triggers": {
+        "When_a_new_response_is_submitted": {
+          "splitOn": "@triggerOutputs()?['body/value']",
+          "metadata": {
+            "operationMetadataId": "15ea6bd7-c6a2-4725-be8b-f5f3c1063e6e"
+          },
+          "type": "OpenApiConnectionWebhook",
+          "inputs": {
+            "host": {
+              "connectionName": "shared_microsoftforms_1",
+              "operationId": "CreateFormWebhook",
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_microsoftforms"
+            },
+            "parameters": {
+              "form_id": "erjW2SrymUyNWiW6Rim4rKSKnjmkhz9Jkk9no9yfU31UMTBQQ1pCUENQNkUxWkdLMDFJTUxVMVFTSCQlQCN0PWcu"
+            },
+            "authentication": "@parameters('$authentication')"
+          }
+        }
+      },
+      "actions": {
+        "Get_response_details": {
+          "runAfter": {},
+          "metadata": {
+            "operationMetadataId": "5cf254a2-c308-42d7-a019-c8480f0cc8c1"
+          },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": {
+              "connectionName": "shared_microsoftforms_1",
+              "operationId": "GetFormResponseById",
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_microsoftforms"
+            },
+            "parameters": {
+              "form_id": "erjW2SrymUyNWiW6Rim4rKSKnjmkhz9Jkk9no9yfU31UMTBQQ1pCUENQNkUxWkdLMDFJTUxVMVFTSCQlQCN0PWcu",
+              "response_id": "@triggerOutputs()?['body/resourceData/responseId']"
+            },
+            "authentication": "@parameters('$authentication')"
+          }
+        },
+        "Condition": {
+          "actions": {
+            "Get_items": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "dfe6c24f-fccd-416c-bf2d-adfe4f8fa590"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_sharepointonline",
+                  "operationId": "GetItems",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"
+                },
+                "parameters": {
+                  "dataset": "https://mijnkuijpers.sharepoint.com/sites/accountteamASML",
+                  "table": "c45d7368-e379-452e-9d34-dbb03030ac12",
+                  "$filter": "Title eq 'Behandelaar'"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "For_each": {
+              "foreach": "@outputs('Get_items')?['body/value']",
+              "actions": {
+                "Send_an_email_(V2)": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "1d517c0e-b032-430f-8630-6652eb785ac6"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_office365",
+                      "operationId": "SendEmailV2",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365"
+                    },
+                    "parameters": {
+                      "emailMessage/To": "mmeurs@kuijpers.com;@{items('For_each')?['Gekoppeld_x0020_mailsjabloon_x000']?['Value']}",
+                      "emailMessage/Subject": "Microsoft Form Response:  @{outputs('Get_response_details')?['body/submitDate']}",
+                      "emailMessage/Body": "<p> Er is een aanvraag gedaan voor een training en/of instructie door \"@{outputs('Get_response_details')?['body/responder']}\" op \"@{outputs('Get_response_details')?['body/submitDate']}\". </p><br><p><span id=\"@{if(equals(body('Get_response_details')?['rc7c67adde49e4e7e841fc6c7911003c3'], 'Mezelf'),\n   concat('E-Mail medewerker: ', body('Get_response_details')?['rfbb1296e11394556b5394c78a9b686a5']),\n   concat('E-Mail aanvrager: ', body('Get_response_details')?['responder']))}\"></span></p><br>",
+                      "emailMessage/Cc": "@body('Get_response_details')?['rfbb1296e11394556b5394c78a9b686a5']"
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  }
+                }
+              },
+              "runAfter": {
+                "Get_items": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "0b841e1f-871f-4f0e-bf92-5cfccb583215"
+              },
+              "type": "Foreach"
+            }
+          },
+          "runAfter": {
+            "Get_response_details": [
+              "Succeeded"
+            ]
+          },
+          "expression": {
+            "not": {
+              "equals": [
+                "@outputs('Get_response_details')?['body/responder']",
+                "anonymous"
+              ]
+            }
+          },
+          "metadata": {
+            "operationMetadataId": "82fd3a4a-78d6-49ac-a29a-bf0de3fbf06b"
+          },
+          "type": "If"
+        }
+      },
+      "outputs": {}
+    },
+    "templateName": ""
+  },
+  "schemaVersion": "1.0.0.0"
+}

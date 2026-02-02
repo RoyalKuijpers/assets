@@ -1,0 +1,680 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_microsoftforms-1": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "kva_sharedmicrosoftforms_d1986"
+        },
+        "api": {
+          "name": "shared_microsoftforms"
+        }
+      },
+      "shared_office365": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "kva_sharedoffice365_2c147"
+        },
+        "api": {
+          "name": "shared_office365"
+        }
+      },
+      "shared_approvals": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "kva_sharedapprovals_33879"
+        },
+        "api": {
+          "name": "shared_approvals"
+        }
+      },
+      "shared_sharepointonline": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "kva_sharedsharepointonline_c0e98"
+        },
+        "api": {
+          "name": "shared_sharepointonline"
+        }
+      },
+      "shared_sharepointonline-1": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "kva_sharedsharepointonline_b5847"
+        },
+        "api": {
+          "name": "shared_sharepointonline"
+        }
+      },
+      "shared_office365users": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "kva_sharedoffice365users_39c24"
+        },
+        "api": {
+          "name": "shared_office365users"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        }
+      },
+      "triggers": {
+        "When_a_new_response_is_submitted": {
+          "splitOn": "@triggerOutputs()?['body/value']",
+          "metadata": {
+            "operationMetadataId": "515e2df8-888c-440c-9d44-422ef877fe37"
+          },
+          "type": "OpenApiConnectionWebhook",
+          "inputs": {
+            "parameters": {
+              "form_id": "erjW2SrymUyNWiW6Rim4rKSKnjmkhz9Jkk9no9yfU31UNkEwMEpBQTMyVEUzMlgxVTZZUFFQNFAzRSQlQCN0PWcu"
+            },
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_microsoftforms",
+              "connectionName": "shared_microsoftforms-1",
+              "operationId": "CreateFormWebhook"
+            },
+            "authentication": "@parameters('$authentication')"
+          }
+        }
+      },
+      "actions": {
+        "Initialize_flowTitle": {
+          "runAfter": {},
+          "metadata": {
+            "operationMetadataId": "3aab21f4-f199-4e0e-b8ea-7478e9316ac9"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "flowTitle",
+                "type": "string",
+                "value": "Goedkeuringsstroom - Aanvraag toegangspas ASML"
+              }
+            ]
+          }
+        },
+        "Initialize_debugMode": {
+          "runAfter": {
+            "Initialize_flowTitle": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "b4f7afcc-e5b8-4f6f-bae6-14b5a09a872b"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "debugMode",
+                "type": "boolean",
+                "value": false
+              }
+            ]
+          }
+        },
+        "Get_response_details": {
+          "runAfter": {
+            "Initialize_debugMode": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "61f5e42a-7c7c-433a-bac8-689eb8c15774"
+          },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "parameters": {
+              "form_id": "erjW2SrymUyNWiW6Rim4rKSKnjmkhz9Jkk9no9yfU31UNkEwMEpBQTMyVEUzMlgxVTZZUFFQNFAzRSQlQCN0PWcu",
+              "response_id": "@triggerOutputs()?['body/resourceData/responseId']"
+            },
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_microsoftforms",
+              "connectionName": "shared_microsoftforms-1",
+              "operationId": "GetFormResponseById"
+            },
+            "authentication": "@parameters('$authentication')"
+          }
+        },
+        "Scope": {
+          "actions": {
+            "Get_existing_name_and_e-mail_adresses_from_badge_registration_list": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "4c8d8c82-8084-4fb3-a1cc-817262cf601a"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "parameters": {
+                  "dataset": "https://mijnkuijpers.sharepoint.com/sites/accountteamASML",
+                  "parameters/method": "GET",
+                  "parameters/uri": "/_api/web/lists(guid'e0911890-73ea-487b-8742-768631379470')/items?$select=E_x002d_Mail,Naam,Badgenummer,MedewerkerKuijpers/Title,MedewerkerKuijpers/Name,MedewerkerKuijpers/Department,MedewerkerKuijpers/EMail,MedewerkerKuijpers/JobTitle&$expand=MedewerkerKuijpers&$top=5000\n\n",
+                  "parameters/headers": {
+                    "Accept": "application/json;odata=nometadata"
+                  }
+                },
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+                  "connectionName": "shared_sharepointonline-1",
+                  "operationId": "HttpRequest"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Filter_array": {
+              "runAfter": {
+                "Get_existing_name_and_e-mail_adresses_from_badge_registration_list": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "73acfad8-c493-4281-bb38-0d8fdc3285fa"
+              },
+              "type": "Query",
+              "inputs": {
+                "from": "@body('Get_existing_name_and_e-mail_adresses_from_badge_registration_list')?['value']",
+                "where": "@or(\r\n    and(\r\n        not(empty(item()?['E_x002d_Mail'])),\r\n        equals(\r\n            toLower(item()?['E_x002d_Mail']),\r\n            toLower(outputs('Get_response_details')?['body/r8a2b0c1833f24066bc999b42e738f97b'])\r\n        )\r\n    ),\r\n    and(\r\n        not(empty(item()?['Naam'])),\r\n        equals(\r\n            toLower(item()?['Naam']),\r\n            toLower(\r\n                concat(\r\n                   outputs('Get_response_details')?['body/r5ad58f4a0a044fad8179a5c43c478e1c'],\r\n                    ' ',\r\n                   outputs('Get_response_details')?['body/r3c1ce4e7f098408e9ec7c49882f05c0c']\r\n                )\r\n            )\r\n        )\r\n    ),\r\n    and(\r\n        not(empty(item()?['MedewerkerKuijpers']?['EMail'])),\r\n        equals(\r\n            toLower(item()?['MedewerkerKuijpers']?['EMail']),\r\n            toLower(outputs('Get_response_details')?['body/r8a2b0c1833f24066bc999b42e738f97b'])\r\n        )\r\n    )\r\n)\r\n"
+              }
+            },
+            "Controleer_of_de_opgegeven_persoonsgegevens_al_eerder_geregistreerd_zijn": {
+              "actions": {
+                "Body_e-mail_badgehouder_🔴_Al_Geregistreerd": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "fd431c9b-be61-449c-94b5-9596590c29ec"
+                  },
+                  "type": "Compose",
+                  "inputs": "<!DOCTYPE html>\n<html lang=\"nl\">\n<head>\n  <meta charset=\"UTF-8\" />\n  <title>Kuijpers Aanvraag Toegangspas - Al Geregistreerd</title>\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n  <style>\n    body { margin: 0; padding: 0; background-color: #ffffff; }\n    .main-table { max-width: 600px; margin: 36px auto; background: #fff; border-collapse: collapse; border-radius: 10px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); overflow: hidden; }\n    .header { background: #cc3333; padding: 0; text-align: center; border-radius: 10px 10px 0 0; }\n    .header-table { width: 100%; border: none; background: #cc3333; border-radius: 10px 10px 0 0; }\n    .header-logo-cell { padding: 18px 24px 18px 24px; text-align: left; vertical-align: middle; width: 1%; background: transparent; }\n    .header-title-cell { padding: 18px 24px 18px 0; text-align: right; vertical-align: middle; background: transparent; }\n    /* WHITE Logo via Filter for contrast on Red */\n    .header img { max-width: 120px; width: 120px; height: auto; display: block; border-radius: 3px; filter: brightness(0) saturate(100%) invert(1); }\n    .content { padding: 24px; font-family: Verdana, Geneva, sans-serif; font-size: 14px; color: #111; line-height: 1.5; background: #fff; }\n\n    .info-box { background: #fff2cc; border: 1px solid #d6b656; border-radius: 5px; padding: 15px; margin: 20px 0; display: flex; align-items: center; }\n    .info-title { color: #b7950b; font-weight: bold; margin-bottom: 10px; }\n    .badge-status { display: flex; align-items: center; gap: 8px; }\n    .badge-icon { width: 20px; height: 20px; display: inline-block; vertical-align: middle; background-repeat: no-repeat; background-position: center center; background-size: contain; }\n    .badge-icon-pending { background: url(\"https://content.mailplus.nl/m5/images/mailing731711/pending_icon_yellow.png\") no-repeat center center; background-size: contain; }\n    .badge-icon-number { background: url(\"https://content.mailplus.nl/m5/images/mailing731711/number_icon_yellow.png\") no-repeat center center; background-size: contain; }\n\n    .footer { font-size: 12px; color: #333; font-style: italic; text-align: left; margin-top: 18px; margin-bottom: 8px; }\n    @media (max-width: 700px) { .main-table { max-width: 100vw; } .header, .content { padding: 14px; } .header img { max-width: 100px; width: 100px; } }\n  </style>\n</head>\n<body>\n  <table class=\"main-table\">\n    <tr>\n      <td class=\"header\" style=\"padding: 0\">\n        <table class=\"header-table\" cellpadding=\"0\" cellspacing=\"0\">\n          <tr>\n            <td class=\"header-logo-cell\">\n              <img src=\"https://content.mailplus.nl/m5/images/mailing731711/kuijpers___logo_koninklijke_rgb_oranje_wit_0100.png\" alt=\"Kuijpers Logo\" width=\"120\" style=\"display: block; border-radius: 3px; max-width: 120px; width: 120px; filter: brightness(0) saturate(100%) invert(1);\" />\n            </td>\n            <td class=\"header-title-cell\">\n              <h1 style=\"color: #ffffff; font-size: 18px; font-family: Verdana, Geneva, sans-serif; line-height: 22px; word-break: break-word; margin: 0 !important;\">\n                <strong>Badge aanvraag - Al Geregistreerd</strong>\n              </h1>\n            </td>\n          </tr>\n        </table>\n      </td>\n    </tr>\n    <tr>\n      <td class=\"content\">\n        <p>Beste @{outputs('Get_response_details')?['body/r5ad58f4a0a044fad8179a5c43c478e1c']},</p>\n        <p>Het door jou opgegeven e-mailadres is al geregistreerd voor een ASML badge in ons systeem.</p>\n        <div class=\"info-box\">\n          <div style=\"flex: 1\">\n            <div class=\"info-title\">Je huidige badgenummer:</div>\n            <div class=\"badge-status\">\n              <strong>@{if(empty(body('Filter_array')[0]?['Badgenummer']), 'In aanvraag', body('Filter_array')[0]?['Badgenummer'])}</strong>\n            </div>\n          </div>\n        </div>\n        <p>\n          Neem contact op met je Kuijpers contactpersoon of stuur een e-mail naar\n          <a href=\"mailto:asmlpasaanvraag@kuijpers.com?subject=Badge%20aanvraag%20vraag%20-%20@{outputs('Get_response_details')?['body/r5ad58f4a0a044fad8179a5c43c478e1c']}%20@{outputs('Get_response_details')?['body/r3c1ce4e7f098408e9ec7c49882f05c0c']}&body=Beste%20collega%27s%2C%0A%0AIk%20heb%20een%20vraag%20over%20mijn%20badge%20aanvraag.%0A%0ANaam%3A%20@{outputs('Get_response_details')?['body/r5ad58f4a0a044fad8179a5c43c478e1c']}%20@{outputs('Get_response_details')?['body/r3c1ce4e7f098408e9ec7c49882f05c0c']}%0AE-mail%3A%20@{outputs('Get_response_details')?['body/r8a2b0c1833f24066bc999b42e738f97b']}%0AHuidige%20badgenummer%3A%20@{if(empty(body('Filter_array')[0]?['Badgenummer']), 'In aanvraag', body('Filter_array')[0]?['Badgenummer'])}%0A%0AMijn%20vraag%3A%20%0A%0AMet%20vriendelijke%20groet%2C%0A@{outputs('Get_response_details')?['body/r5ad58f4a0a044fad8179a5c43c478e1c']}%20@{outputs('Get_response_details')?['body/r3c1ce4e7f098408e9ec7c49882f05c0c']}\">asmlpasaanvraag@kuijpers.com</a>.\n        </p>\n        <p>Met vriendelijke groet,</p>\n        <p><strong>Kuijpers Klantvestiging ASML</strong></p>\n        <div class=\"footer\">Deze e-mail is automatisch verzonden vanuit ons automatiseringssysteem en zodoende niet persoonlijk afgesloten op naam.</div>\n      </td>\n    </tr>\n    <tr>\n      <td style=\"padding-top: 20px\">\n        <table width=\"100%\" style=\"background-color:#141d7c; color:#ffffff; padding:16px 24px; border-radius:10px;\">\n          <tr>\n            <td style=\"text-align:left; vertical-align:middle; width:50%\">\n              <img src=\"https://content.mailplus.nl/m5/images/mailing731711/kuijpers___logo_koninklijke_rgb_oranje_wit_0100.png\" alt=\"Kuijpers Logo\" style=\"max-width:120px !important; width:120px; height:auto; vertical-align:middle; display:inline-block;\" />\n            </td>\n            <td style=\"text-align:right; vertical-align:middle; width:50%\">\n              <a href=\"https://www.linkedin.com/company/kuijpers/\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"margin:0 7px\"><img src=\"https://static.mailplus.nl/spml-editor//social-networks-icons/white-circle/linkedin.png\" width=\"28\" style=\"vertical-align: middle\" alt=\"LinkedIn\"/></a>\n              <a href=\"https://www.instagram.com/kuijpers_nl/\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"margin:0 7px\"><img src=\"https://static.mailplus.nl/spml-editor//social-networks-icons/white-circle/instagram.png\" width=\"28\" style=\"vertical-align: middle\" alt=\"Instagram\"/></a>\n              <a href=\"https://www.facebook.com/KoninklijkeKuijpers/\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"margin:0 7px\"><img src=\"https://static.mailplus.nl/spml-editor//social-networks-icons/white-circle/facebook.png\" width=\"28\" style=\"vertical-align: middle\" alt=\"Facebook\"/></a>\n              <a href=\"https://www.youtube.com/user/KuijpersNL\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"margin:0 7px\"><img src=\"https://static.mailplus.nl/spml-editor//social-networks-icons/white-circle/youtube.png\" width=\"28\" style=\"vertical-align: middle\" alt=\"YouTube\"/></a>\n            </td>\n          </tr>\n          <tr>\n            <td style=\"text-align:left; vertical-align:bottom; font-family: Verdana, Geneva, sans-serif; font-size:18px; color:#fff; font-weight:bold; padding-top:8px;\">\n              Klantvestiging ASML\n            </td>\n            <td style=\"text-align:right; vertical-align:bottom; font-family: Verdana, Geneva, sans-serif; font-size:14px; color:#fff; text-decoration: underline; font-weight:bold; padding-top:8px;\">\n              asmlpasaanvraag@kuijpers.nl\n            </td>\n          </tr>\n        </table>\n      </td>\n    </tr>\n  </table>\n</body>\n</html>\n"
+                },
+                "Een_niet_akkoord_e-mail_verzenden_🔴_E-Mail_adres_bestaat_al": {
+                  "runAfter": {
+                    "Body_e-mail_badgehouder_🔴_Al_Geregistreerd": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "b0348c6c-476e-4bc0-8971-ede9df93f964"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "parameters": {
+                      "emailMessage/To": "@outputs('Get_response_details')?['body/r8a2b0c1833f24066bc999b42e738f97b']",
+                      "emailMessage/Subject": "❌ Uw aanvraag voor een ASML toegangspas is afgekeurd ",
+                      "emailMessage/Body": "<p class=\"editor-paragraph\">@{outputs('Body_e-mail_badgehouder_🔴_Al_Geregistreerd')}</p>",
+                      "emailMessage/From": "asmlpasaanvraag@kuijpers.com",
+                      "emailMessage/Bcc": "mmeurs@kuijpers.com",
+                      "emailMessage/Importance": "High"
+                    },
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+                      "connectionName": "shared_office365",
+                      "operationId": "SendEmailV2"
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  }
+                },
+                "Flow_cancelled": {
+                  "runAfter": {
+                    "Een_niet_akkoord_e-mail_verzenden_🔴_E-Mail_adres_bestaat_al": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "6f95e2f7-a670-4181-b97b-e1890d3908a9"
+                  },
+                  "type": "Terminate",
+                  "inputs": {
+                    "runStatus": "Cancelled"
+                  }
+                }
+              },
+              "runAfter": {
+                "Filter_array": [
+                  "Succeeded"
+                ],
+                "Get_existing_name_and_e-mail_adresses_from_badge_registration_list": [
+                  "Succeeded"
+                ]
+              },
+              "else": {
+                "actions": {
+                  "Controleer_of_ingevoerde_e-mail_een_kuijpers_e-mail_is": {
+                    "actions": {
+                      "Zoek_persoonsprofiel_medewerker": {
+                        "runAfter": {},
+                        "metadata": {
+                          "operationMetadataId": "664395c5-5b90-4741-ad6e-6af5991aaa9c"
+                        },
+                        "type": "OpenApiConnection",
+                        "inputs": {
+                          "parameters": {
+                            "id": "@toLower(outputs('Get_response_details')?['body/r8a2b0c1833f24066bc999b42e738f97b'])"
+                          },
+                          "host": {
+                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365users",
+                            "connectionName": "shared_office365users",
+                            "operationId": "UserProfile_V2"
+                          },
+                          "authentication": "@parameters('$authentication')"
+                        }
+                      },
+                      "Compose:_Logging_for_debug": {
+                        "runAfter": {
+                          "Zoek_persoonsprofiel_medewerker": [
+                            "Succeeded",
+                            "Failed",
+                            "TimedOut"
+                          ]
+                        },
+                        "metadata": {
+                          "operationMetadataId": "111b9c10-96c8-447c-b369-c5fd60c1a4da"
+                        },
+                        "type": "Compose",
+                        "inputs": "@body('Zoek_persoonsprofiel_medewerker')"
+                      },
+                      "Kuijpers_medewerker_toevoegen_aan_de_badge_registratielijst": {
+                        "runAfter": {
+                          "Compose:_Logging_for_debug": [
+                            "Succeeded"
+                          ]
+                        },
+                        "metadata": {
+                          "operationMetadataId": "1e595a84-dc19-4f90-851a-2cc03759c8ee"
+                        },
+                        "type": "OpenApiConnection",
+                        "inputs": {
+                          "parameters": {
+                            "dataset": "https://mijnkuijpers.sharepoint.com/sites/accountteamASML",
+                            "table": "e0911890-73ea-487b-8742-768631379470",
+                            "item/Naam": "@{body('Get_response_details')?['r5ad58f4a0a044fad8179a5c43c478e1c']} @{outputs('Get_response_details')?['body/r3c1ce4e7f098408e9ec7c49882f05c0c']}",
+                            "item/E_x002d_Mail": "@outputs('Get_response_details')?['body/r8a2b0c1833f24066bc999b42e738f97b']",
+                            "item/Aangemaakt": "@convertFromUtc(utcNow(), 'W. Europe Standard')",
+                            "item/MedewerkerKuijpers/Claims": "@coalesce(outputs('Zoek_persoonsprofiel_medewerker')?['body/userPrincipalName'],null)",
+                            "item/HireDate": "@if(empty(outputs('Zoek_persoonsprofiel_medewerker')?['body/hireDate']),null,parseDateTime(outputs('Zoek_persoonsprofiel_medewerker')?['body/hireDate']))",
+                            "item/badgeRequestStartDate": "@outputs('Get_response_details')?['body/submitDate']",
+                            "item/badgeRequestCreatedFunctie": "@outputs('Get_response_details')?['body/r9f45bf9d5e7f42f7885e56849498d461']",
+                            "item/badgeRequestCreatedBy": "@{body('Get_response_details')?['r5ad58f4a0a044fad8179a5c43c478e1c']} @{outputs('Get_response_details')?['body/r3c1ce4e7f098408e9ec7c49882f05c0c']}",
+                            "item/badgeRequestStatus": "Wacht op goedkeuring",
+                            "item/Functie": "@outputs('Get_response_details')?['body/r9f45bf9d5e7f42f7885e56849498d461']",
+                            "item/Birthday": "@if(empty(outputs('Zoek_persoonsprofiel_medewerker')?['body/birthday']),null,parseDateTime(outputs('Zoek_persoonsprofiel_medewerker')?['body/birthday']))"
+                          },
+                          "host": {
+                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+                            "connectionName": "shared_sharepointonline-1",
+                            "operationId": "PostItem"
+                          },
+                          "authentication": "@parameters('$authentication')"
+                        }
+                      }
+                    },
+                    "runAfter": {},
+                    "else": {
+                      "actions": {
+                        "Een_nieuw_item_toevoegen_aan_de_badge_registratielijst_🆕": {
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "1e595a84-dc19-4f90-851a-2cc03759c8ee"
+                          },
+                          "type": "OpenApiConnection",
+                          "inputs": {
+                            "parameters": {
+                              "dataset": "https://mijnkuijpers.sharepoint.com/sites/accountteamASML",
+                              "table": "e0911890-73ea-487b-8742-768631379470",
+                              "item/Naam": "@{body('Get_response_details')?['r5ad58f4a0a044fad8179a5c43c478e1c']} @{outputs('Get_response_details')?['body/r3c1ce4e7f098408e9ec7c49882f05c0c']}",
+                              "item/E_x002d_Mail": "@outputs('Get_response_details')?['body/r8a2b0c1833f24066bc999b42e738f97b']",
+                              "item/Aangemaakt": "@convertFromUtc(utcNow(),'W. Europe Standard Time')",
+                              "item/badgeRequestStartDate": "@outputs('Get_response_details')?['body/submitDate']",
+                              "item/badgeRequestCreatedFunctie": "@outputs('Get_response_details')?['body/r9f45bf9d5e7f42f7885e56849498d461']",
+                              "item/badgeRequestCreatedBy": "@{body('Get_response_details')?['r5ad58f4a0a044fad8179a5c43c478e1c']} @{outputs('Get_response_details')?['body/r3c1ce4e7f098408e9ec7c49882f05c0c']}",
+                              "item/badgeRequestStatus": "Wacht op goedkeuring",
+                              "item/Functie": "@outputs('Get_response_details')?['body/r9f45bf9d5e7f42f7885e56849498d461']"
+                            },
+                            "host": {
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+                              "connectionName": "shared_sharepointonline-1",
+                              "operationId": "PostItem"
+                            },
+                            "authentication": "@parameters('$authentication')"
+                          }
+                        }
+                      }
+                    },
+                    "expression": {
+                      "and": [
+                        {
+                          "contains": [
+                            "@toLower(trim(string(outputs('Get_response_details')?['body/r8a2b0c1833f24066bc999b42e738f97b'])))",
+                            "'@kuijpers'"
+                          ]
+                        }
+                      ]
+                    },
+                    "metadata": {
+                      "operationMetadataId": "18bf7573-dc42-4b84-85aa-c3abf66a728d"
+                    },
+                    "type": "If"
+                  },
+                  "Start_and_wait_for_an_approval": {
+                    "runAfter": {
+                      "Controleer_of_ingevoerde_e-mail_een_kuijpers_e-mail_is": [
+                        "Succeeded",
+                        "Skipped",
+                        "Failed",
+                        "TimedOut"
+                      ]
+                    },
+                    "metadata": {
+                      "operationMetadataId": "29d2ba9f-bc4f-4762-971e-69b29af92c90"
+                    },
+                    "type": "OpenApiConnectionWebhook",
+                    "inputs": {
+                      "parameters": {
+                        "approvalType": "Basic",
+                        "WebhookApprovalCreationInput/title": "Goedkeuring vereist voor de aanvraag van een ASML toegangspas",
+                        "WebhookApprovalCreationInput/assignedTo": "mmeij@kuijpers.com; redekker@kuijpers.com; mmeurs@kuijpers.com; bhermans@kuijpers.com",
+                        "WebhookApprovalCreationInput/details": "Op @{formatDateTime(body('Get_response_details')?['submitDate'], 'f','nl-NL')}  heeft  @{outputs('Get_response_details')?['body/r5ad58f4a0a044fad8179a5c43c478e1c']} @{outputs('Get_response_details')?['body/r3c1ce4e7f098408e9ec7c49882f05c0c']} (@{body('Get_response_details')?['r9f45bf9d5e7f42f7885e56849498d461']}) een ASML toegangspas aangevraagd. U kunt deze aanvraag goed- of afkeuren. Als u de aanvraag goedkeurt, wordt er automatisch een mail gestuurd naar CRE Projectsupport om de pas te maken.Als u de aanvraag afkeurt, vragen wij u om de reden daarvoor te vermelden in het opmerkingenveld. Wij zullen dan een mail sturen naar @{outputs('Get_response_details')?['body/r8a2b0c1833f24066bc999b42e738f97b']} met uw feedback.",
+                        "WebhookApprovalCreationInput/enableNotifications": true,
+                        "WebhookApprovalCreationInput/enableReassignment": false
+                      },
+                      "host": {
+                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_approvals",
+                        "connectionName": "shared_approvals",
+                        "operationId": "StartAndWaitForAnApproval"
+                      },
+                      "authentication": "@parameters('$authentication')"
+                    }
+                  },
+                  "Update_item_met_approval_gegevens": {
+                    "runAfter": {
+                      "Start_and_wait_for_an_approval": [
+                        "Succeeded"
+                      ]
+                    },
+                    "metadata": {
+                      "operationMetadataId": "d3a0e7dd-3db4-4939-b09d-ecabaa9f81d6"
+                    },
+                    "type": "OpenApiConnection",
+                    "inputs": {
+                      "parameters": {
+                        "dataset": "https://mijnkuijpers.sharepoint.com/sites/accountteamASML",
+                        "table": "e0911890-73ea-487b-8742-768631379470",
+                        "id": "@outputs('Een_nieuw_item_toevoegen_aan_de_badge_registratielijst_🆕')?['body/ID']",
+                        "item/badgeRequestStartDate": "@outputs('Start_and_wait_for_an_approval')?['body/requestDate']",
+                        "item/badgeRequestApprovalMail": "<p class=\"editor-paragraph\">@{outputs('Start_and_wait_for_an_approval')?['body/details']}</p>"
+                      },
+                      "host": {
+                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+                        "connectionName": "shared_sharepointonline",
+                        "operationId": "PatchItem"
+                      },
+                      "authentication": "@parameters('$authentication')"
+                    }
+                  },
+                  "Controleer_uitkomst_van_de_goedkeuring": {
+                    "actions": {
+                      "Body_e-mail_ASML🟢_Akkoord": {
+                        "runAfter": {},
+                        "metadata": {
+                          "operationMetadataId": "2d347ad7-82a9-4b16-a00d-4f430d7d6787"
+                        },
+                        "type": "Compose",
+                        "inputs": "<!DOCTYPE html>\n<html lang=\"nl\">\n<head>\n  <meta charset=\"UTF-8\" />\n  <title>Kuijpers Aanvraag Toegangspas - Goedgekeurd</title>\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n  <style>\n    body { margin: 0; padding: 0; background-color: #ffffff; }\n    .main-table { max-width: 600px; margin: 36px auto; background: #fff; border-collapse: collapse; border-radius: 10px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); overflow: hidden; }\n    .header { background: #0e1a76; padding: 0; text-align: center; border-radius: 10px 10px 0 0; }\n    .header-table { width: 100%; border: none; background: #0e1a76; border-radius: 10px 10px 0 0; }\n    .header-logo-cell { padding: 18px 24px 18px 24px; text-align: left; vertical-align: middle; width: 1%; background: transparent; }\n    .header-title-cell { padding: 18px 24px 18px 0; text-align: right; vertical-align: middle; background: transparent; }\n    .header img { max-width: 120px; width: 120px; height: auto; display: block; border-radius: 3px; }\n    .content { padding: 24px; font-family: Verdana, Geneva, sans-serif; font-size: 14px; color: #111; line-height: 1.5; background: #fff; }\n    .content-table { width: 100%; border-collapse: collapse; margin: 20px 0; background: #fff; }\n    .content-table th, .content-table td { font-size: 14px; padding: 12px 10px; border: 1px solid #dddddd; text-align: left; }\n    .content-table th { background: #0e1a76; color: #fff; }\n    .content-table tr:nth-child(even) td { background: #f9f9f9; }\n    .footer { font-size: 12px; color: #333; font-style: italic; text-align: left; margin-top: 18px; margin-bottom: 8px; }\n    @media (max-width: 700px) { .main-table { max-width: 100vw; } .header, .content { padding: 14px; } .header img { max-width: 100px; width: 100px; } }\n  </style>\n</head>\n<body>\n  \n  <table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"background-color: #d4edfc; width: 100%;\">\n    <tr>\n      <td align=\"center\" style=\"padding: 36px 0;\">\n        <table class=\"main-table\">\n          <tr>\n            <td class=\"header\" style=\"padding: 0\">\n              <table class=\"header-table\" cellpadding=\"0\" cellspacing=\"0\">\n                <tr>\n                  <td class=\"header-logo-cell\">\n                    <img src=\"https://content.mailplus.nl/m5/images/mailing731711/kuijpers___logo_koninklijke_rgb_oranje_wit_0100.png\" alt=\"Kuijpers Logo\" width=\"120\" style=\"display: block; border-radius: 3px; max-width: 120px; width: 120px;\" />\n                  </td>\n                  <td class=\"header-title-cell\">\n                    <h1 style=\"color: #ffffff; font-size: 18px; font-family: Verdana, Geneva, sans-serif; line-height: 22px; word-break: break-word; margin: 0 !important;\">\n                      <strong>Badge aanvraag</strong>\n                    </h1>\n                  </td>\n                </tr>\n              </table>\n            </td>\n          </tr>\n          <tr>\n            <td class=\"content\">\n              <p>Geachte heer/mevrouw,</p>\n              <p>Hierbij ontvangt u de benodigde gegevens met betrekking tot een nieuwe pasaanvraag.</p>\n              <table class=\"content-table\">\n                <thead>\n                  <tr><th>Kenmerk</th><th>Inhoud</th></tr>\n                </thead>\n                <tbody>\n                  <tr><td>Voornaam</td><td>@{outputs('Get_response_details')?['body/r5ad58f4a0a044fad8179a5c43c478e1c']}</td></tr>\n                  <tr><td>Achternaam</td><td>@{outputs('Get_response_details')?['body/r3c1ce4e7f098408e9ec7c49882f05c0c']}</td></tr>\n                  <tr><td>Nationaliteit</td><td>@{outputs('Get_response_details')?['body/rfab596ffe54a46c0b434a0438f622758']}</td></tr>\n                  <tr><td>Emailadres</td><td><a href=\"mailto:@{outputs('Get_response_details')?['body/r8a2b0c1833f24066bc999b42e738f97b']}\">@{outputs('Get_response_details')?['body/r8a2b0c1833f24066bc999b42e738f97b']}</a></td></tr>\n                </tbody>\n              </table>\n              <p>Ik vertrouw erop u hiermee voldoende te hebben geïnformeerd en aarzel niet om contact met ons op te nemen indien u nog vragen heeft.</p>\n              <p>Met vriendelijke groet,</p>\n              <p><strong>Kuijpers Klantvestiging ASML</strong></p>\n              <div class=\"footer\">Deze e-mail is automatisch verzonden vanuit ons automatiseringssysteem en zodoende niet persoonlijk afgesloten op naam.</div>\n            </td>\n          </tr>\n          <tr>\n            <td style=\"padding-top: 20px\">\n              <table width=\"100%\" style=\"background-color: #0e1a76; color: white; padding: 16px 24px; border-radius: 10px;\">\n                <tr>\n                  <td style=\"text-align: left; vertical-align: middle; width: 50%\">\n                    <img src=\"https://content.mailplus.nl/m5/images/mailing731711/kuijpers___logo_koninklijke_rgb_oranje_wit_0100.png\" alt=\"Kuijpers Logo\" style=\"max-width: 120px !important; height: auto; vertical-align: middle;\" />\n                  </td>\n                  <td style=\"text-align: right; vertical-align: middle; width: 50%\">\n                    <a href=\"https://www.linkedin.com/company/kuijpers/\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"margin: 0 7px\"><img src=\"https://static.mailplus.nl/spml-editor//social-networks-icons/white-circle/linkedin.png\" width=\"28\" style=\"vertical-align: middle\" alt=\"LinkedIn\" /></a>\n                    <a href=\"https://www.instagram.com/kuijpers_nl/\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"margin: 0 7px\"><img src=\"https://static.mailplus.nl/spml-editor//social-networks-icons/white-circle/instagram.png\" width=\"28\" style=\"vertical-align: middle\" alt=\"Instagram\" /></a>\n                    <a href=\"https://www.facebook.com/KoninklijkeKuijpers/\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"margin: 0 7px\"><img src=\"https://static.mailplus.nl/spml-editor//social-networks-icons/white-circle/facebook.png\" width=\"28\" style=\"vertical-align: middle\" alt=\"Facebook\" /></a>\n                    <a href=\"https://www.youtube.com/user/KuijpersNL\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"margin: 0 7px\"><img src=\"https://static.mailplus.nl/spml-editor//social-networks-icons/white-circle/youtube.png\" width=\"28\" style=\"vertical-align: middle\" alt=\"YouTube\" /></a>\n                  </td>\n                </tr>\n                <tr>\n                  <td style=\"text-align: left; vertical-align: bottom; font-family: Verdana, Geneva, sans-serif; font-size: 18px; color: #fff; font-weight: bold; padding-top: 8px;\">\n                    Klantvestiging ASML\n                  </td>\n                  <td style=\"text-align: right; vertical-align: bottom; font-family: Verdana, Geneva, sans-serif; font-size: 14px; color: #fff; text-decoration: underline; font-weight: bold; padding-top: 8px;\">\n                    asmlpasaanvraag@kuijpers.nl\n                  </td>\n                </tr>\n              </table>\n            </td>\n          </tr>\n        </table>\n      </td>\n    </tr>\n  </table>\n</body>\n</html>\n"
+                      },
+                      "Send_Mail_🟢_User_Confirmation": {
+                        "runAfter": {},
+                        "metadata": {
+                          "operationMetadataId": "6daf2d79-b927-440f-bc6d-3129c03cb9b7"
+                        },
+                        "type": "OpenApiConnection",
+                        "inputs": {
+                          "parameters": {
+                            "emailMessage/To": "@outputs('Get_response_details')?['body/r8a2b0c1833f24066bc999b42e738f97b']",
+                            "emailMessage/Subject": "✅ Je badge aanvraag is goedgekeurd - Kuijpers ASML",
+                            "emailMessage/Body": "<!DOCTYPE html>\n<html lang=\"nl\">\n<head>\n  <meta charset=\"UTF-8\" />\n  <title>Actie Vereist: Rond nu je ASML pas-aanvraag af</title>\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n  <style>\n    body { margin: 0; padding: 0; background-color: #ffffff; }\n    .main-table { max-width: 600px; margin: 36px auto; background: #fff; border-collapse: collapse; border-radius: 10px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); overflow: hidden; }\n    .header { background: #0066cc; padding: 0; text-align: center; border-radius: 10px 10px 0 0; }\n    .header-table { width: 100%; border: none; background: #0066cc; border-radius: 10px 10px 0 0; }\n    .header-logo-cell { padding: 18px 24px 18px 24px; text-align: left; vertical-align: middle; width: 1%; background: transparent; }\n    .header-title-cell { padding: 18px 24px 18px 0; text-align: right; vertical-align: middle; background: transparent; }\n    .header img { max-width: 170px; height: auto; display: block; border-radius: 3px; }\n    .content { padding: 24px; font-family: Verdana, Geneva, sans-serif; font-size: 14px; color: #111; line-height: 1.5; background: #fff; }\n    .warning-box { background: #fff3cd; border: 1px solid #ffc107; border-left: 4px solid #ff6b35; border-radius: 6px; padding: 16px; margin: 20px 0; }\n    .warning-title { color: #856404; font-weight: bold; margin-bottom: 8px; }\n    .footer { font-size: 12px; color: #333; font-style: italic; text-align: left; margin-top: 18px; margin-bottom: 8px; }\n    @media (max-width: 700px) { .main-table { max-width: 100vw; } .header, .content { padding: 14px; } .header img { max-width: 120px; } }\n  </style>\n</head>\n<body>\n  \n  <table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"background-color: #d4edfc; width: 100%;\">\n    <tr>\n      <td align=\"center\" style=\"padding: 36px 0;\">\n        <table class=\"main-table\">\n          <tr>\n            <td class=\"header\" style=\"padding: 0\">\n              <table class=\"header-table\" cellpadding=\"0\" cellspacing=\"0\">\n                <tr>\n                  <td class=\"header-logo-cell\">\n                    <img src=\"https://content.mailplus.nl/m5/images/mailing731711/kuijpers___logo_koninklijke_rgb_oranje_wit_0100.png\" alt=\"Kuijpers Logo\" width=\"170\" style=\"display: block; border-radius: 3px; max-width: 170px; height: auto;\" />\n                  </td>\n                  <td class=\"header-title-cell\">\n                    <h1 style=\"color: #ffffff; font-size: 18px; font-family: Verdana, Geneva, sans-serif; line-height: 22px; word-break: break-word; margin: 0 !important;\">\n                      <strong>Actie Vereist: Rond je aanvraag af</strong>\n                    </h1>\n                  </td>\n                </tr>\n              </table>\n            </td>\n          </tr>\n          <tr>\n            <td class=\"content\">\n              <p>Beste @{outputs('Get_response_details')?['body/r5ad58f4a0a044fad8179a5c43c478e1c']},</p>\n              <p style=\"margin-top: 20px; margin-bottom: 10px;\"><strong style=\"color: #333; font-size: 15px;\">Goed nieuws! Je interne aanvraag voor een ASML-pas is verwerkt.</strong></p>\n              <p style=\"margin-top: 0; margin-bottom: 20px;\">Om je pas te ontvangen, moet je nu zelf de laatste stappen nog voltooien. Je ontvangt hiervoor een aparte e-mail van ASML (van <strong>creprojectsupport@asml.com</strong>).</p>\n              <div class=\"warning-box\">\n                <div class=\"warning-title\">Let op: Belangrijke vervolgstappen</div>\n                <p style=\"margin-top: 0; margin-bottom: 10px\">Omdat dit een handmatig proces is bij ASML, kan het <strong>tot één werkdag</strong> duren voordat je deze e-mail ontvangt. Heb je daarna nog geen mail ontvangen neem dan alsjeblieft even contact met ons op via <a href=\"mailto:asmlpasaanvraag@kuijpers.com\">asmlpasaanvraag@kuijpers.com</a>.</p>\n                <p style=\"margin-top: 0; margin-bottom: 10px\"><strong>Open de e-mail van ASML op een laptop of tablet.</strong> Je moet vanuit Okta met je telefoon een QR-code kunnen scannen om je account te activeren.</p>\n                <p style=\"margin: 0\">Pas nadat je deze stappen hebt voltooid, wordt je pas aangemaakt.</p>\n              </div>\n              <p style=\"margin-top: 20px; margin-bottom: 20px;\"><strong style=\"color: #333;\">Extra e-mails:</strong> Je ontvangt mogelijk extra e-mails van ASML MyLearning. Deze kun je negeren. Dit is een automatisch proces dat we helaas niet kunnen aanpassen.</p>\n              <p>Voor vragen over dit proces kun je contact opnemen met je Kuijpers contactpersoon of een e-mail sturen naar <a href=\"mailto:asmlpasaanvraag@kuijpers.com?subject=Badge%20aanvraag%20vraag%20-%20@{outputs('Get_response_details')?['body/r5ad58f4a0a044fad8179a5c43c478e1c']}%20@{outputs('Get_response_details')?['body/r3c1ce4e7f098408e9ec7c49882f05c0c']}&body=Beste%20collega%27s%2C%0A%0AIk%20heb%20een%20vraag%20over%20mijn%20goedgekeurde%20badge%20aanvraag.%0A%0ANaam%3A%20@{outputs('Get_response_details')?['body/r5ad58f4a0a044fad8179a5c43c478e1c']}%20@{outputs('Get_response_details')?['body/r3c1ce4e7f098408e9ec7c49882f05c0c']}%0AE-mail%3A%20@{outputs('Get_response_details')?['body/r8a2b0c1833f24066bc999b42e738f97b']}%0A%0AMijn%20vraag%3A%20%0A%0AMet%20vriendelijke%20groet%2C%0A@{outputs('Get_response_details')?['body/r5ad58f4a0a044fad8179a5c43c478e1c']}%20@{outputs('Get_response_details')?['body/r3c1ce4e7f098408e9ec7c49882f05c0c']}\">asmlpasaanvraag@kuijpers.com</a>.</p>\n              <p>Met vriendelijke groet,</p>\n              <p><strong>Kuijpers Klantvestiging ASML</strong></p>\n              <div class=\"footer\">Deze e-mail is automatisch verzonden vanuit ons automatiseringssysteem en zodoende niet persoonlijk afgesloten op naam.</div>\n            </td>\n          </tr>\n          <tr>\n            <td style=\"padding-top: 20px\">\n              <table width=\"100%\" style=\"background-color: #141d7c; color: white; padding: 16px 24px; border-radius: 10px;\">\n                <tr>\n                  <td style=\"text-align: left; vertical-align: middle; width: 50%\">\n                    <img src=\"https://content.mailplus.nl/m5/images/mailing731711/kuijpers___logo_koninklijke_rgb_oranje_wit_0100.png\" alt=\"Kuijpers Logo\" style=\"max-width: 170px; height: auto; vertical-align: middle;\" />\n                  </td>\n                  <td style=\"text-align: right; vertical-align: middle; width: 50%\">\n                    <a href=\"https://www.linkedin.com/company/kuijpers/\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"margin: 0 7px\"><img src=\"https://static.mailplus.nl/spml-editor//social-networks-icons/white-circle/linkedin.png\" width=\"28\" style=\"vertical-align: middle\" alt=\"LinkedIn\" /></a>\n                    <a href=\"https://www.instagram.com/kuijpers_nl/\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"margin: 0 7px\"><img src=\"https://static.mailplus.nl/spml-editor//social-networks-icons/white-circle/instagram.png\" width=\"28\" style=\"vertical-align: middle\" alt=\"Instagram\" /></a>\n                    <a href=\"https://www.facebook.com/KoninklijkeKuijpers/\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"margin: 0 7px\"><img src=\"https://static.mailplus.nl/spml-editor//social-networks-icons/white-circle/facebook.png\" width=\"28\" style=\"vertical-align: middle\" alt=\"Facebook\" /></a>\n                    <a href=\"https://www.youtube.com/user/KuijpersNL\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"margin: 0 7px\"><img src=\"https://static.mailplus.nl/spml-editor//social-networks-icons/white-circle/youtube.png\" width=\"28\" style=\"vertical-align: middle\" alt=\"YouTube\" /></a>\n                  </td>\n                </tr>\n                <tr>\n                  <td style=\"text-align: left; vertical-align: bottom; font-family: Verdana, Geneva, sans-serif; font-size: 18px; color: #fff; font-weight: bold; padding-top: 8px;\">\n                    Klantvestiging ASML\n                  </td>\n                  <td style=\"text-align: right; vertical-align: bottom; font-family: Verdana, Geneva, sans-serif; font-size: 14px; color: #fff; text-decoration: underline; font-weight: bold; padding-top: 8px;\">\n                    asmlpasaanvraag@kuijpers.nl\n                  </td>\n                </tr>\n              </table>\n            </td>\n          </tr>\n        </table>\n      </td>\n    </tr>\n  </table>\n</body>\n</html>\n",
+                            "emailMessage/From": "asmlpasaanvraag@kuijpers.com",
+                            "emailMessage/ReplyTo": "asmlpasaanvraag@kuijpers.com;@{outputs('Get_response_details')?['body/r8a2b0c1833f24066bc999b42e738f97b']}",
+                            "emailMessage/Importance": "Normal"
+                          },
+                          "host": {
+                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+                            "connectionName": "shared_office365",
+                            "operationId": "SendEmailV2"
+                          },
+                          "authentication": "@parameters('$authentication')"
+                        }
+                      },
+                      "Update_item_-_Status_akkoord_🟢_": {
+                        "runAfter": {
+                          "Body_e-mail_ASML🟢_Akkoord": [
+                            "Succeeded"
+                          ]
+                        },
+                        "metadata": {
+                          "operationMetadataId": "7f6925a8-d63e-4148-9a8a-2b23d561814c"
+                        },
+                        "type": "OpenApiConnection",
+                        "inputs": {
+                          "parameters": {
+                            "dataset": "https://mijnkuijpers.sharepoint.com/sites/accountteamASML",
+                            "table": "e0911890-73ea-487b-8742-768631379470",
+                            "id": "@outputs('Een_nieuw_item_toevoegen_aan_de_badge_registratielijst_🆕')?['body/ID']",
+                            "item/Offboarding": false,
+                            "item/userRemoved": false,
+                            "item/badgeApprovedBy/Claims": "@coalesce(first(body('Start_and_Wait_for_an_Approval')?['responses'])?['responder']?['userPrincipalName'], null)",
+                            "item/badgeRequestApprovedMail": "<p class=\"editor-paragraph\">@{outputs('Body_e-mail_ASML🟢_Akkoord')}</p>",
+                            "item/badgeApproved": "@utcNow('yyyy-MM-ddTHH:mm:ssZ')",
+                            "item/badgeRequestSendToASML": true,
+                            "item/badgeRequestConfirmedASML": false,
+                            "item/badgeRequestStatus": "Intern Goedgekeurd"
+                          },
+                          "host": {
+                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+                            "connectionName": "shared_sharepointonline",
+                            "operationId": "PatchItem"
+                          },
+                          "authentication": "@parameters('$authentication')"
+                        }
+                      },
+                      "Update_item_-_Add_attachment": {
+                        "runAfter": {
+                          "Update_item_-_Status_akkoord_🟢_": [
+                            "Succeeded"
+                          ],
+                          "Send_Mail_🟢_ASML_Badge_Request": [
+                            "Succeeded"
+                          ]
+                        },
+                        "metadata": {
+                          "operationMetadataId": "75584733-97ae-4e32-9227-1b5af4fc3ffb"
+                        },
+                        "type": "OpenApiConnection",
+                        "inputs": {
+                          "parameters": {
+                            "dataset": "https://mijnkuijpers.sharepoint.com/sites/accountteamASML",
+                            "table": "e0911890-73ea-487b-8742-768631379470",
+                            "itemId": "@outputs('Een_nieuw_item_toevoegen_aan_de_badge_registratielijst_🆕')?['body/ID']",
+                            "displayName": "EmailAkkoordASML.html",
+                            "body": "@{concat(\r\n  '<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><style>',\r\n  'body { font-family: Arial, sans-serif; }',\r\n  '.header { font-weight: bold; margin-bottom: 10px; }',\r\n  '.section { margin-bottom: 20px; }',\r\n  '</style></head><body>',\r\n  '<div class=\"section header\">To: ', outputs('Send_Mail_🟢_ASML_Badge_Request')?['body/emailMessage/To'], '</div>',\r\n  '<div class=\"section header\">Subject: ', outputs('Send_Mail_🟢_ASML_Badge_Request')?['body/emailMessage/Subject'], '</div>',\r\n  '<div class=\"section header\">Sent: ', convertTimeZone(utcNow(), 'UTC', 'W. Europe Standard Time', 'yyyy-MM-dd HH:mm'), '</div>',\r\n  '<hr>',\r\n  '<div class=\"section\">', outputs('Send_Mail_🟢_ASML_Badge_Request')?['body/emailMessage/Body'], '</div>',\r\n  '</body></html>'\r\n)}\n"
+                          },
+                          "host": {
+                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+                            "connectionName": "shared_sharepointonline",
+                            "operationId": "CreateAttachment"
+                          },
+                          "authentication": "@parameters('$authentication')"
+                        }
+                      },
+                      "Send_Mail_🟢_ASML_Badge_Request": {
+                        "runAfter": {
+                          "Send_Mail_🟢_User_Confirmation": [
+                            "Succeeded"
+                          ]
+                        },
+                        "metadata": {
+                          "operationMetadataId": "6daf2d79-b927-440f-bc6d-3129c03cb9b7"
+                        },
+                        "type": "OpenApiConnection",
+                        "inputs": {
+                          "parameters": {
+                            "emailMessage/To": "Creprojectsupport@asml.com",
+                            "emailMessage/Subject": "🆕 Aanvraag voor ASML Toegangspas - Vereiste Informatie",
+                            "emailMessage/Body": "<!DOCTYPE html>\n<html lang=\"nl\">\n<head>\n  <meta charset=\"UTF-8\" />\n  <title>Kuijpers Aanvraag Toegangspas - Goedgekeurd</title>\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n  <style>\n    body { margin: 0; padding: 0; background-color: #ffffff; }\n    .main-table { max-width: 600px; margin: 36px auto; background: #fff; border-collapse: collapse; border-radius: 10px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); overflow: hidden; }\n    .header { background: #0e1a76; padding: 0; text-align: center; border-radius: 10px 10px 0 0; }\n    .header-table { width: 100%; border: none; background: #0e1a76; border-radius: 10px 10px 0 0; }\n    .header-logo-cell { padding: 18px 24px 18px 24px; text-align: left; vertical-align: middle; width: 1%; background: transparent; }\n    .header-title-cell { padding: 18px 24px 18px 0; text-align: right; vertical-align: middle; background: transparent; }\n    .header img { max-width: 120px; width: 120px; height: auto; display: block; border-radius: 3px; }\n    .content { padding: 24px; font-family: Verdana, Geneva, sans-serif; font-size: 14px; color: #111; line-height: 1.5; background: #fff; }\n    .content-table { width: 100%; border-collapse: collapse; margin: 20px 0; background: #fff; }\n    .content-table th, .content-table td { font-size: 14px; padding: 12px 10px; border: 1px solid #dddddd; text-align: left; }\n    .content-table th { background: #0e1a76; color: #fff; }\n    .content-table tr:nth-child(even) td { background: #f9f9f9; }\n    .footer { font-size: 12px; color: #333; font-style: italic; text-align: left; margin-top: 18px; margin-bottom: 8px; }\n    @media (max-width: 700px) { .main-table { max-width: 100vw; } .header, .content { padding: 14px; } .header img { max-width: 100px; width: 100px; } }\n  </style>\n</head>\n<body>\n  \n  <table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"background-color: #d4edfc; width: 100%;\">\n    <tr>\n      <td align=\"center\" style=\"padding: 36px 0;\">\n        <table class=\"main-table\">\n          <tr>\n            <td class=\"header\" style=\"padding: 0\">\n              <table class=\"header-table\" cellpadding=\"0\" cellspacing=\"0\">\n                <tr>\n                  <td class=\"header-logo-cell\">\n                    <img src=\"https://content.mailplus.nl/m5/images/mailing731711/kuijpers___logo_koninklijke_rgb_oranje_wit_0100.png\" alt=\"Kuijpers Logo\" width=\"120\" style=\"display: block; border-radius: 3px; max-width: 120px; width: 120px;\" />\n                  </td>\n                  <td class=\"header-title-cell\">\n                    <h1 style=\"color: #ffffff; font-size: 18px; font-family: Verdana, Geneva, sans-serif; line-height: 22px; word-break: break-word; margin: 0 !important;\">\n                      <strong>Badge aanvraag</strong>\n                    </h1>\n                  </td>\n                </tr>\n              </table>\n            </td>\n          </tr>\n          <tr>\n            <td class=\"content\">\n              <p>Geachte heer/mevrouw,</p>\n              <p>Hierbij ontvangt u de benodigde gegevens met betrekking tot een nieuwe pasaanvraag.</p>\n              <table class=\"content-table\">\n                <thead>\n                  <tr><th>Kenmerk</th><th>Inhoud</th></tr>\n                </thead>\n                <tbody>\n                  <tr><td>Voornaam</td><td>@{outputs('Get_response_details')?['body/r5ad58f4a0a044fad8179a5c43c478e1c']}</td></tr>\n                  <tr><td>Achternaam</td><td>@{outputs('Get_response_details')?['body/r3c1ce4e7f098408e9ec7c49882f05c0c']}</td></tr>\n                  <tr><td>Nationaliteit</td><td>@{outputs('Get_response_details')?['body/rfab596ffe54a46c0b434a0438f622758']}</td></tr>\n                  <tr><td>Emailadres</td><td><a href=\"mailto:@{outputs('Get_response_details')?['body/r8a2b0c1833f24066bc999b42e738f97b']}\">@{outputs('Get_response_details')?['body/r8a2b0c1833f24066bc999b42e738f97b']}</a></td></tr>\n                </tbody>\n              </table>\n              <p>Ik vertrouw erop u hiermee voldoende te hebben geïnformeerd en aarzel niet om contact met ons op te nemen indien u nog vragen heeft.</p>\n              <p>Met vriendelijke groet,</p>\n              <p><strong>Kuijpers Klantvestiging ASML</strong></p>\n              <div class=\"footer\">Deze e-mail is automatisch verzonden vanuit ons automatiseringssysteem en zodoende niet persoonlijk afgesloten op naam.</div>\n            </td>\n          </tr>\n          <tr>\n            <td style=\"padding-top: 20px\">\n              <table width=\"100%\" style=\"background-color: #0e1a76; color: white; padding: 16px 24px; border-radius: 10px;\">\n                <tr>\n                  <td style=\"text-align: left; vertical-align: middle; width: 50%\">\n                    <img src=\"https://content.mailplus.nl/m5/images/mailing731711/kuijpers___logo_koninklijke_rgb_oranje_wit_0100.png\" alt=\"Kuijpers Logo\" style=\"max-width: 120px !important; height: auto; vertical-align: middle;\" />\n                  </td>\n                  <td style=\"text-align: right; vertical-align: middle; width: 50%\">\n                    <a href=\"https://www.linkedin.com/company/kuijpers/\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"margin: 0 7px\"><img src=\"https://static.mailplus.nl/spml-editor//social-networks-icons/white-circle/linkedin.png\" width=\"28\" style=\"vertical-align: middle\" alt=\"LinkedIn\" /></a>\n                    <a href=\"https://www.instagram.com/kuijpers_nl/\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"margin: 0 7px\"><img src=\"https://static.mailplus.nl/spml-editor//social-networks-icons/white-circle/instagram.png\" width=\"28\" style=\"vertical-align: middle\" alt=\"Instagram\" /></a>\n                    <a href=\"https://www.facebook.com/KoninklijkeKuijpers/\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"margin: 0 7px\"><img src=\"https://static.mailplus.nl/spml-editor//social-networks-icons/white-circle/facebook.png\" width=\"28\" style=\"vertical-align: middle\" alt=\"Facebook\" /></a>\n                    <a href=\"https://www.youtube.com/user/KuijpersNL\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"margin: 0 7px\"><img src=\"https://static.mailplus.nl/spml-editor//social-networks-icons/white-circle/youtube.png\" width=\"28\" style=\"vertical-align: middle\" alt=\"YouTube\" /></a>\n                  </td>\n                </tr>\n                <tr>\n                  <td style=\"text-align: left; vertical-align: bottom; font-family: Verdana, Geneva, sans-serif; font-size: 18px; color: #fff; font-weight: bold; padding-top: 8px;\">\n                    Klantvestiging ASML\n                  </td>\n                  <td style=\"text-align: right; vertical-align: bottom; font-family: Verdana, Geneva, sans-serif; font-size: 14px; color: #fff; text-decoration: underline; font-weight: bold; padding-top: 8px;\">\n                    asmlpasaanvraag@kuijpers.nl\n                  </td>\n                </tr>\n              </table>\n            </td>\n          </tr>\n        </table>\n      </td>\n    </tr>\n  </table>\n</body>\n</html>\n",
+                            "emailMessage/From": "asmlpasaanvraag@kuijpers.com",
+                            "emailMessage/ReplyTo": "asmlpasaanvraag@kuijpers.com;@{outputs('Get_response_details')?['body/r8a2b0c1833f24066bc999b42e738f97b']}",
+                            "emailMessage/Importance": "Normal"
+                          },
+                          "host": {
+                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+                            "connectionName": "shared_office365",
+                            "operationId": "SendEmailV2"
+                          },
+                          "authentication": "@parameters('$authentication')"
+                        }
+                      }
+                    },
+                    "runAfter": {
+                      "Update_item_met_approval_gegevens": [
+                        "Succeeded"
+                      ]
+                    },
+                    "else": {
+                      "actions": {
+                        "Op_elk(e)_toepassen": {
+                          "foreach": "@outputs('Start_and_wait_for_an_approval')?['body/responses']",
+                          "actions": {
+                            "Body_e-mail_badgehouder_🔴_Afgewezen": {
+                              "runAfter": {},
+                              "metadata": {
+                                "operationMetadataId": "fd431c9b-be61-449c-94b5-9596590c29ec"
+                              },
+                              "type": "Compose",
+                              "inputs": "<!DOCTYPE html>\n<html lang=\"nl\">\n<head>\n  <meta charset=\"UTF-8\" />\n  <title>Kuijpers Aanvraag Toegangspas - Afgewezen</title>\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n  <style>\n    body { margin: 0; padding: 0; background-color: #ffffff; }\n    .main-table { max-width: 600px; margin: 36px auto; background: #fff; border-collapse: collapse; border-radius: 10px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); overflow: hidden; }\n    /* RED HEADER for Rejection */\n    .header { background: #cc3333; padding: 0; text-align: center; border-radius: 10px 10px 0 0; }\n    .header-table { width: 100%; border: none; background: #cc3333; border-radius: 10px 10px 0 0; }\n    .header-logo-cell { padding: 18px 24px 18px 24px; text-align: left; vertical-align: middle; width: 1%; background: transparent; }\n    .header-title-cell { padding: 18px 24px 18px 0; text-align: right; vertical-align: middle; background: transparent; }\n    /* WHITE LOGO Filter */\n    .header img { max-width: 120px; width: 120px; height: auto; display: block; border-radius: 3px; filter: brightness(0) saturate(100%) invert(1); }\n    .content { padding: 24px; font-family: Verdana, Geneva, sans-serif; font-size: 14px; color: #111; line-height: 1.5; background: #fff; }\n    .rejection-box { background: #ffeaea; border: 1px solid #cc3333; border-radius: 5px; padding: 15px; margin: 20px 0; }\n    .rejection-title { color: #cc3333; font-weight: bold; margin-bottom: 10px; }\n    .cta-btn { display: inline-block; margin: 24px 0 8px 0; padding: 12px 32px; background: #cc3333; color: #fff !important; border-radius: 4px; text-decoration: none; font-size: 14px; }\n    .footer { font-size: 12px; color: #333; font-style: italic; text-align: left; margin-top: 18px; margin-bottom: 8px; }\n    @media (max-width: 700px) { .main-table { max-width: 100vw; } .header, .content { padding: 14px; } .header img { max-width: 120px; } .logoinverted { filter: brightness(0) saturate(100%) invert(1); } }\n  </style>\n</head>\n<body>\n  \n  <table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"background-color: #ffffff; width: 100%;\">\n    <tr>\n      <td align=\"center\" style=\"padding: 36px 0;\">\n        <table class=\"main-table\">\n          <tr>\n            <td class=\"header\" style=\"padding: 0\">\n              <table class=\"header-table\" cellpadding=\"0\" cellspacing=\"0\" role=\"presentation\" width=\"100%\">\n                <tr>\n                  <td class=\"header-logo-cell\">\n                    <img src=\"https://content.mailplus.nl/m5/images/mailing731711/kuijpers___logo_koninklijke_rgb_oranje_wit_0100.png\" alt=\"Kuijpers Logo\" style=\"display:block; border-radius:3px; max-width:120px; width:120px; height:auto; filter: brightness(0) saturate(100%) invert(1);\" />\n                  </td>\n                  <td class=\"header-title-cell\">\n                    <h1 style=\"color:#ffffff; font-size:18px; font-family: Verdana, Geneva, sans-serif; line-height:22px; word-break:break-word; margin:0 !important;\">\n                      <strong>Badge aanvraag - Afgewezen</strong>\n                    </h1>\n                  </td>\n                </tr>\n              </table>\n            </td>\n          </tr>\n          <tr>\n            <td class=\"content\">\n              <p>Beste @{outputs('Get_response_details')?['body/r5ad58f4a0a044fad8179a5c43c478e1c']},</p>\n              <p>Je aanvraag voor een toegangspas is helaas afgewezen met de hieronder volgende opgave van reden:</p>\n              <div class=\"rejection-box\">\n                <div class=\"rejection-title\">Reden voor afkeuring:</div>\n                <div>@{items('Op_elk(e)_toepassen')?['comments']}</div>\n              </div>\n              <p>Neem contact op met je contactpersoon van Kuijpers of stuur een e-mail naar <a href=\"mailto:asmlpasaanvraag@kuijpers.com?subject=Badge%20aanvraag%20afgewezen%20-%20@{outputs('Get_response_details')?['body/r5ad58f4a0a044fad8179a5c43c478e1c']}%20@{outputs('Get_response_details')?['body/r3c1ce4e7f098408e9ec7c49882f05c0c']}&body=Beste%20collega%27s%2C%0A%0AIk%20heb%20een%20vraag%20over%20mijn%20afgewezen%20badgeaanvraag.%0A%0ANaam%3A%20@{outputs('Get_response_details')?['body/r5ad58f4a0a044fad8179a5c43c478e1c']}%20@{outputs('Get_response_details')?['body/r3c1ce4e7f098408e9ec7c49882f05c0c']}%0AE-mail%3A%20@{outputs('Get_response_details')?['body/r8a2b0c1833f24066bc999b42e738f97b']}%0AReden%20afkeuring%3A%20@{items('Op_elk(e)_toepassen')?['comments']}%0A%0AMijn%20vraag%3A%20%0A%0AMet%20vriendelijke%20groet%2C%0A@{outputs('Get_response_details')?['body/r5ad58f4a0a044fad8179a5c43c478e1c']}%20@{outputs('Get_response_details')?['body/r3c1ce4e7f098408e9ec7c49882f05c0c']}\">asmlpasaanvraag@kuijpers.com</a> om de pasaanvraag alsnog in orde te maken.</p>\n              <p>Met vriendelijke groet,</p>\n              <p><strong>Kuijpers Klantvestiging ASML</strong></p>\n              <div class=\"footer\">Deze e-mail is automatisch verzonden vanuit ons automatiseringssysteem en zodoende niet persoonlijk afgesloten op naam.</div>\n            </td>\n          </tr>\n          <tr>\n            <td style=\"padding-top: 20px\">\n              <table width=\"100%\" style=\"background-color:#141d7c; color:#ffffff; padding:16px 24px; border-radius:10px;\" role=\"presentation\">\n                <tr>\n                  <td style=\"text-align:left; vertical-align:middle; width:50%\">\n                    <img src=\"https://content.mailplus.nl/m5/images/mailing731711/kuijpers___logo_koninklijke_rgb_oranje_wit_0100.png\" alt=\"Kuijpers Logo\" style=\"max-width:170px !important; height:auto; vertical-align:middle; display:inline-block;\" />\n                  </td>\n                  <td style=\"text-align:right; vertical-align:middle; width:50%\">\n                    <a href=\"https://www.linkedin.com/company/kuijpers/\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"margin: 0 7px\"><img src=\"https://static.mailplus.nl/spml-editor//social-networks-icons/white-circle/linkedin.png\" width=\"28\" style=\"vertical-align: middle\" alt=\"LinkedIn\" /></a>\n                    <a href=\"https://www.instagram.com/kuijpers_nl/\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"margin: 0 7px\"><img src=\"https://static.mailplus.nl/spml-editor//social-networks-icons/white-circle/instagram.png\" width=\"28\" style=\"vertical-align: middle\" alt=\"Instagram\" /></a>\n                    <a href=\"https://www.facebook.com/KoninklijkeKuijpers/\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"margin: 0 7px\"><img src=\"https://static.mailplus.nl/spml-editor//social-networks-icons/white-circle/facebook.png\" width=\"28\" style=\"vertical-align: middle\" alt=\"Facebook\" /></a>\n                    <a href=\"https://www.youtube.com/user/KuijpersNL\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"margin: 0 7px\"><img src=\"https://static.mailplus.nl/spml-editor//social-networks-icons/white-circle/youtube.png\" width=\"28\" style=\"vertical-align: middle\" alt=\"YouTube\" /></a>\n                  </td>\n                </tr>\n                <tr>\n                  <td style=\"text-align:left; vertical-align:bottom; font-family: Verdana, Geneva, sans-serif; font-size:18px; color:#fff; font-weight:bold; padding-top:8px;\">\n                    Klantvestiging ASML\n                  </td>\n                  <td style=\"text-align:right; vertical-align:bottom; font-family: Verdana, Geneva, sans-serif; font-size:14px; color:#fff; text-decoration: underline; font-weight:bold; padding-top:8px;\">\n                    asmlpasaanvraag@kuijpers.nl\n                  </td>\n                </tr>\n              </table>\n            </td>\n          </tr>\n        </table>\n      </td>\n    </tr>\n  </table>\n</body>\n</html>"
+                            },
+                            "E-mail_verzenden_🔴_Niet-Akkoord": {
+                              "runAfter": {
+                                "Body_e-mail_badgehouder_🔴_Afgewezen": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "b0348c6c-476e-4bc0-8971-ede9df93f964"
+                              },
+                              "type": "OpenApiConnection",
+                              "inputs": {
+                                "parameters": {
+                                  "emailMessage/To": "@outputs('Get_response_details')?['body/r8a2b0c1833f24066bc999b42e738f97b']",
+                                  "emailMessage/Subject": "❌ Uw aanvraag voor een ASML toegangspas is afgekeurd",
+                                  "emailMessage/Body": "<p class=\"editor-paragraph\">@{outputs('Body_e-mail_badgehouder_🔴_Afgewezen')}</p>",
+                                  "emailMessage/From": "asmlpasaanvraag@kuijpers.com",
+                                  "emailMessage/Cc": "@item()?['responder']?['email']",
+                                  "emailMessage/Importance": "High"
+                                },
+                                "host": {
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+                                  "connectionName": "shared_office365",
+                                  "operationId": "SendEmailV2"
+                                },
+                                "authentication": "@parameters('$authentication')"
+                              }
+                            },
+                            "Update_item_-_Status_niet-akkoord_🔴_": {
+                              "runAfter": {
+                                "E-mail_verzenden_🔴_Niet-Akkoord": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "2385e319-c11e-4afc-8e19-ac84a7708419"
+                              },
+                              "type": "OpenApiConnection",
+                              "inputs": {
+                                "parameters": {
+                                  "dataset": "https://mijnkuijpers.sharepoint.com/sites/accountteamASML",
+                                  "table": "e0911890-73ea-487b-8742-768631379470",
+                                  "id": "@outputs('Een_nieuw_item_toevoegen_aan_de_badge_registratielijst_🆕')?['body/ID']",
+                                  "item/Offboarding": false,
+                                  "item/userRemoved": false,
+                                  "item/badgeRejectedBy/Claims": "@coalesce(first(body('Start_and_Wait_for_an_Approval')?['responses'])?['responder']?['userPrincipalName'], null)",
+                                  "item/badgeRejectedReason": "@items('Op_elk(e)_toepassen')?['comments']",
+                                  "item/badgeRejected": "@utcNow('yyyy-MM-ddTHH:mm:ssZ')",
+                                  "item/badgeRequestSendToASML": false,
+                                  "item/badgeRequestConfirmedASML": false,
+                                  "item/badgeRequestStatus": "Intern Afgekeurd"
+                                },
+                                "host": {
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+                                  "connectionName": "shared_sharepointonline",
+                                  "operationId": "PatchItem"
+                                },
+                                "authentication": "@parameters('$authentication')"
+                              }
+                            }
+                          },
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "957e93fc-8247-4e11-bc0f-8423bad6a479"
+                          },
+                          "type": "Foreach"
+                        }
+                      }
+                    },
+                    "expression": {
+                      "equals": [
+                        "@outputs('Start_and_wait_for_an_approval')?['body/outcome']",
+                        "Approve"
+                      ]
+                    },
+                    "metadata": {
+                      "operationMetadataId": "5fbad307-efcf-4574-94b2-581e5b0bff9d"
+                    },
+                    "type": "If"
+                  }
+                }
+              },
+              "expression": {
+                "and": [
+                  {
+                    "not": {
+                      "equals": [
+                        "@length(body('Filter_array'))",
+                        0
+                      ]
+                    }
+                  }
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "18bf7573-dc42-4b84-85aa-c3abf66a728d"
+              },
+              "type": "If"
+            }
+          },
+          "runAfter": {
+            "Get_response_details": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "52cc7bc1-adca-47be-b33b-f1aad4f8a31b"
+          },
+          "type": "Scope"
+        }
+      }
+    },
+    "templateName": null
+  },
+  "schemaVersion": "1.0.0.0"
+}
