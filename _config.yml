@@ -1,7 +1,9 @@
 exclude:
   - "**/*.ps1"
-  - "**/*.json"
   - .gitignore
   - .git
   - .github
   - GITHUB_PAGES_SETUP.md
+  - package.json
+  - package-lock.json
+  - tsconfig.json
