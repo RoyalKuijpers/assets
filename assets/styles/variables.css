@@ -1,0 +1,64 @@
+/**
+ * Kuijpers Design Variables
+ * CSS custom properties for design system
+ */
+
+:root {
+  /* Spacing */
+  --kuijpers-spacing-xs: 0.25rem;   /* 4px */
+  --kuijpers-spacing-sm: 0.5rem;    /* 8px */
+  --kuijpers-spacing-md: 1rem;      /* 16px */
+  --kuijpers-spacing-lg: 1.5rem;    /* 24px */
+  --kuijpers-spacing-xl: 2rem;      /* 32px */
+  --kuijpers-spacing-2xl: 3rem;     /* 48px */
+  --kuijpers-spacing-3xl: 4rem;     /* 64px */
+  
+  /* Typography */
+  --kuijpers-font-family-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --kuijpers-font-family-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+  
+  --kuijpers-font-size-xs: 0.75rem;    /* 12px */
+  --kuijpers-font-size-sm: 0.875rem;   /* 14px */
+  --kuijpers-font-size-md: 1rem;       /* 16px */
+  --kuijpers-font-size-lg: 1.125rem;   /* 18px */
+  --kuijpers-font-size-xl: 1.25rem;    /* 20px */
+  --kuijpers-font-size-2xl: 1.5rem;    /* 24px */
+  --kuijpers-font-size-3xl: 1.875rem;  /* 30px */
+  --kuijpers-font-size-4xl: 2.25rem;   /* 36px */
+  
+  --kuijpers-font-weight-normal: 400;
+  --kuijpers-font-weight-medium: 500;
+  --kuijpers-font-weight-semibold: 600;
+  --kuijpers-font-weight-bold: 700;
+  
+  --kuijpers-line-height-tight: 1.25;
+  --kuijpers-line-height-normal: 1.5;
+  --kuijpers-line-height-relaxed: 1.75;
+  
+  /* Border Radius */
+  --kuijpers-radius-sm: 0.125rem;   /* 2px */
+  --kuijpers-radius-md: 0.25rem;    /* 4px */
+  --kuijpers-radius-lg: 0.5rem;     /* 8px */
+  --kuijpers-radius-xl: 1rem;       /* 16px */
+  --kuijpers-radius-full: 9999px;
+  
+  /* Shadows */
+  --kuijpers-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --kuijpers-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --kuijpers-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --kuijpers-shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  
+  /* Transitions */
+  --kuijpers-transition-fast: 150ms ease-in-out;
+  --kuijpers-transition-base: 300ms ease-in-out;
+  --kuijpers-transition-slow: 500ms ease-in-out;
+  
+  /* Z-index */
+  --kuijpers-z-dropdown: 1000;
+  --kuijpers-z-sticky: 1020;
+  --kuijpers-z-fixed: 1030;
+  --kuijpers-z-modal-backdrop: 1040;
+  --kuijpers-z-modal: 1050;
+  --kuijpers-z-popover: 1060;
+  --kuijpers-z-tooltip: 1070;
+}

@@ -1,0 +1,33 @@
+{
+  "name": "@royalkuijpers/kuijpers-assets",
+  "version": "1.0.0",
+  "description": "Kuijpers Assets Library - A collection of brand assets, icons, images, and design resources",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"No tests specified\" && exit 0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RoyalKuijpers/kuijpers-assets.git"
+  },
+  "keywords": [
+    "assets",
+    "design",
+    "icons",
+    "images",
+    "brand",
+    "kuijpers"
+  ],
+  "author": "Royal Kuijpers",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/RoyalKuijpers/kuijpers-assets/issues"
+  },
+  "homepage": "https://github.com/RoyalKuijpers/kuijpers-assets#readme",
+  "files": [
+    "assets/",
+    "index.js",
+    "README.md",
+    "LICENSE"
+  ]
+}
