@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kuijpers Assets Library 🏗️</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 900px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #2d3748;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .subtitle {
+            color: #718096;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section h2 {
+            color: #4a5568;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 10px;
+        }
+
+        .resource-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .resource-card {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+
+        .resource-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border-color: #667eea;
+        }
+
+        .resource-card h3 {
+            color: #667eea;
+            margin-bottom: 8px;
+            font-size: 1.2em;
+        }
+
+        .resource-card p {
+            color: #718096;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+
+        .usage-example {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            overflow-x: auto;
+        }
+
+        .usage-example code {
+            color: #9ae6b4;
+        }
+
+        ul {
+            list-style-position: inside;
+            color: #4a5568;
+            line-height: 1.8;
+        }
+
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #e2e8f0;
+            text-align: center;
+            color: #718096;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏗️ Kuijpers Assets Library</h1>
+        <p class="subtitle">Centrale opslag voor statische bestanden en templates - Kuijpers Klantvestiging ASML</p>
+
+        <div class="section">
+            <h2>📂 Beschikbare Resources</h2>
+            <div class="resource-grid">
+                <a href="images/" class="resource-card">
+                    <h3>🖼️ Afbeeldingen</h3>
+                    <p>Logo's, iconen, QR-codes, locaties, bordjes en andere visuals</p>
+                </a>
+                <a href="templates/" class="resource-card">
+                    <h3>📄 Templates</h3>
+                    <p>E-mail templates, PDF's en screenshots</p>
+                </a>
+                <a href="workflows/" class="resource-card">
+                    <h3>⚙️ Workflows</h3>
+                    <p>Power Automate flow exports (JSON)</p>
+                </a>
+                <a href="KVA-QuickFlowLinker.html" class="resource-card">
+                    <h3>🚀 Flow Dashboard</h3>
+                    <p>Directe toegang tot alle flows</p>
+                </a>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>💡 Gebruik</h2>
+            <p>Alle bestanden zijn direct benaderbaar via GitHub Pages URL's:</p>
+            <div class="usage-example">
+                <code>https://royalkuijpers.github.io/kuijpers-assets/&lt;pad&gt;/&lt;bestand&gt;</code>
+            </div>
+            <p><strong>Voorbeelden:</strong></p>
+            <ul>
+                <li>Logo: <code>images/logos/kuijpers-logo.png</code></li>
+                <li>QR-code: <code>images/qr-codes/QR-Pasaanvraag.png</code></li>
+                <li>Flow dashboard: <code>KVA-QuickFlowLinker.html</code></li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>📁 Mappenstructuur</h2>
+            <ul>
+                <li><strong>images/</strong> - Alle afbeeldingen (logos, iconen, QR-codes, locaties, bordjes)</li>
+                <li><strong>templates/</strong> - E-mail templates, PDF's en screenshots</li>
+                <li><strong>workflows/</strong> - Power Automate flow exports</li>
+                <li><strong>docs/</strong> - Publieke documentatie</li>
+            </ul>
+        </div>
+
+        <div class="footer">
+            <p>Beheerd door Marco van Meurs | Kuijpers Klantvestiging ASML</p>
+        </div>
+    </div>
+</body>
+</html>
