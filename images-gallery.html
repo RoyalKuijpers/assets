@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Images Gallery - Kuijpers Assets Library 🖼️</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 1400px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 30px;
+        }
+
+        header {
+            margin-bottom: 30px;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 20px;
+        }
+
+        h1 {
+            color: #2d3748;
+            margin-bottom: 10px;
+            font-size: 2.2em;
+        }
+
+        .subtitle {
+            color: #718096;
+            margin-bottom: 20px;
+            font-size: 1em;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 25px;
+            align-items: center;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 250px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .filter-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn, .view-btn {
+            padding: 10px 18px;
+            border: 2px solid #e2e8f0;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.9em;
+            font-weight: 500;
+            color: #4a5568;
+        }
+
+        .filter-btn:hover, .view-btn:hover {
+            border-color: #667eea;
+            background: #f7fafc;
+        }
+
+        .filter-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .view-controls {
+            display: flex;
+            gap: 5px;
+            margin-left: auto;
+        }
+
+        .view-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .stats {
+            background: #f7fafc;
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            color: #4a5568;
+            font-size: 0.95em;
+        }
+
+        /* List View Styles */
+        .list-view {
+            display: none;
+        }
+
+        .list-view.active {
+            display: block;
+        }
+
+        .list-item {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.3s;
+        }
+
+        .list-item:hover {
+            border-color: #667eea;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .list-item-info {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .list-item-folder {
+            display: inline-block;
+            padding: 4px 10px;
+            background: #667eea;
+            color: white;
+            border-radius: 6px;
+            font-size: 0.8em;
+            font-weight: 600;
+            min-width: 80px;
+            text-align: center;
+        }
+
+        .list-item-name {
+            color: #2d3748;
+            font-weight: 500;
+            word-break: break-all;
+        }
+
+        .list-item-url {
+            color: #718096;
+            font-size: 0.85em;
+            font-family: 'Courier New', monospace;
+            margin-left: 10px;
+            max-width: 400px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .copy-btn {
+            padding: 8px 16px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: 500;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+
+        .copy-btn:hover {
+            background: #5568d3;
+            transform: translateY(-1px);
+        }
+
+        .copy-btn.copied {
+            background: #48bb78;
+        }
+
+        /* Card View Styles */
+        .card-view {
+            display: none;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .card-view.active {
+            display: grid;
+        }
+
+        .card-item {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            overflow: hidden;
+            transition: all 0.3s;
+        }
+
+        .card-item:hover {
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .card-image-container {
+            width: 100%;
+            height: 200px;
+            background: #2d3748;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .card-image-container img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .card-image-container.loading::after {
+            content: '⏳';
+            font-size: 2em;
+            position: absolute;
+        }
+
+        .card-content {
+            padding: 15px;
+        }
+
+        .card-folder {
+            display: inline-block;
+            padding: 4px 10px;
+            background: #667eea;
+            color: white;
+            border-radius: 6px;
+            font-size: 0.75em;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .card-name {
+            color: #2d3748;
+            font-weight: 600;
+            margin-bottom: 10px;
+            word-break: break-word;
+            font-size: 0.95em;
+        }
+
+        .card-url {
+            color: #718096;
+            font-size: 0.75em;
+            font-family: 'Courier New', monospace;
+            margin-bottom: 12px;
+            word-break: break-all;
+            line-height: 1.4;
+        }
+
+        .back-link {
+            display: inline-block;
+            color: #667eea;
+            text-decoration: none;
+            margin-bottom: 20px;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        .back-link:hover {
+            color: #5568d3;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #718096;
+        }
+
+        .empty-state-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .view-controls {
+                margin-left: 0;
+                justify-content: center;
+            }
+
+            .list-item-info {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+
+            .list-item-url {
+                margin-left: 0;
+                max-width: 100%;
+            }
+
+            .card-view {
+                grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            }
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #48bb78;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s;
+            z-index: 1000;
+            font-weight: 500;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="index.html" class="back-link">← Terug naar Home</a>
+        
+        <header>
+            <h1>🖼️ Images Gallery</h1>
+            <p class="subtitle">Browse and copy public URLs for all images in the Kuijpers Assets Library</p>
+        </header>
+
+        <div class="controls">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="🔍 Zoek afbeeldingen op naam...">
+            </div>
+            
+            <div class="filter-group">
+                <button class="filter-btn active" data-folder="all">All (224)</button>
+                <button class="filter-btn" data-folder="icons">Icons (32)</button>
+                <button class="filter-btn" data-folder="locations">Locations (13)</button>
+                <button class="filter-btn" data-folder="logos">Logos (149)</button>
+                <button class="filter-btn" data-folder="other">Other (24)</button>
+                <button class="filter-btn" data-folder="qr-codes">QR Codes (5)</button>
+                <button class="filter-btn" data-folder="signs">Signs (3)</button>
+            </div>
+
+            <div class="view-controls">
+                <button class="view-btn" data-view="list" title="List View">📋</button>
+                <button class="view-btn active" data-view="card" title="Card View">🗂️</button>
+            </div>
+        </div>
+
+        <div class="stats" id="stats">
+            Showing <strong id="visibleCount">224</strong> of <strong>224</strong> images
+        </div>
+
+        <!-- List View -->
+        <div class="list-view" id="listView"></div>
+
+        <!-- Card View -->
+        <div class="card-view active" id="cardView"></div>
+
+        <!-- Empty State -->
+        <div class="empty-state" id="emptyState" style="display: none;">
+            <div class="empty-state-icon">🔍</div>
+            <h3>No images found</h3>
+            <p>Try adjusting your search or filter criteria</p>
+        </div>
+    </div>
+
+    <div class="toast" id="toast">📋 URL copied to clipboard!</div>
+
+    <script>
+        const BASE_URL = 'https://royalkuijpers.github.io/kuijpers-assets/';
+        
+        const images = [
+            { path: 'images/icons/favicon-150x150.png', folder: 'icons' },
+            { path: 'images/icons/favicon-16x16.png', folder: 'icons' },
+            { path: 'images/icons/favicon-250x250-200w.png', folder: 'icons' },
+            { path: 'images/icons/favicon-250x250.png', folder: 'icons' },
+            { path: 'images/icons/favicon-32x32.png', folder: 'icons' },
+            { path: 'images/icons/favicon-64x64.png', folder: 'icons' },
+            { path: 'images/icons/favicon-96x96.png', folder: 'icons' },
+            { path: 'images/icons/folderico.png', folder: 'icons' },
+            { path: 'images/icons/kuijpers-icon-koninklijke-cmyk-01-200w.png', folder: 'icons' },
+            { path: 'images/icons/kuijpers-icon-koninklijke-cmyk-01-600w.png', folder: 'icons' },
+            { path: 'images/icons/kuijpers-icon-koninklijke-cmyk-01.png', folder: 'icons' },
+            { path: 'images/icons/kuijpers-icon-koninklijke-rgb-01-200w.jpg', folder: 'icons' },
+            { path: 'images/icons/kuijpers-icon-koninklijke-rgb-01-200w.png', folder: 'icons' },
+            { path: 'images/icons/kuijpers-icon-koninklijke-rgb-01-600w.jpg', folder: 'icons' },
+            { path: 'images/icons/kuijpers-icon-koninklijke-rgb-01-600w.png', folder: 'icons' },
+            { path: 'images/icons/kuijpers-icon-koninklijke-rgb-01.jpg', folder: 'icons' },
+            { path: 'images/icons/kuijpers-icon-koninklijke-rgb-01.png', folder: 'icons' },
+            { path: 'images/icons/kuijpers-roboticon-128x128.png', folder: 'icons' },
+            { path: 'images/icons/kuijpers-roboticon-final-200w.png', folder: 'icons' },
+            { path: 'images/icons/kuijpers-roboticon-final-600w.png', folder: 'icons' },
+            { path: 'images/icons/kuijpers-roboticon-final-margin-200w.png', folder: 'icons' },
+            { path: 'images/icons/kuijpers-roboticon-final-margin-600w.png', folder: 'icons' },
+            { path: 'images/icons/kuijpers-roboticon-final-margin.png', folder: 'icons' },
+            { path: 'images/icons/kuijpers-roboticon-final.png', folder: 'icons' },
+            { path: 'images/icons/socialmedia-bw-round-facebook.png', folder: 'icons' },
+            { path: 'images/icons/socialmedia-bw-round-instagram.png', folder: 'icons' },
+            { path: 'images/icons/socialmedia-bw-round-linkedin.png', folder: 'icons' },
+            { path: 'images/icons/socialmedia-bw-round-youtube.png', folder: 'icons' },
+            { path: 'images/icons/socialmedia-color-round-facebook.png', folder: 'icons' },
+            { path: 'images/icons/socialmedia-color-round-instagram.png', folder: 'icons' },
+            { path: 'images/icons/socialmedia-color-round-linkedin.png', folder: 'icons' },
+            { path: 'images/icons/socialmedia-color-round-youtube.png', folder: 'icons' },
+            { path: 'images/locations/mark-kuijpers-200w.png', folder: 'locations' },
+            { path: 'images/locations/mark-kuijpers-600w.png', folder: 'locations' },
+            { path: 'images/locations/mark-kuijpers.png', folder: 'locations' },
+            { path: 'images/locations/marker-kuijpers-200w.png', folder: 'locations' },
+            { path: 'images/locations/marker-kuijpers-600w.png', folder: 'locations' },
+            { path: 'images/locations/marker-kuijpers-alt-200w.png', folder: 'locations' },
+            { path: 'images/locations/marker-kuijpers-alt-600w.png', folder: 'locations' },
+            { path: 'images/locations/marker-kuijpers-alt.png', folder: 'locations' },
+            { path: 'images/locations/marker-kuijpers.png', folder: 'locations' },
+            { path: 'images/locations/route_kuijpers_600w.png', folder: 'locations' },
+            { path: 'images/locations/vestigingskaart-0922-rgb-200w.jpg', folder: 'locations' },
+            { path: 'images/locations/vestigingskaart-0922-rgb-600w.jpg', folder: 'locations' },
+            { path: 'images/locations/vestigingskaart-0922-rgb.jpg', folder: 'locations' },
+            { path: 'images/logos/beeldmerk-kuijpers-asml-klein.jpg', folder: 'logos' },
+            { path: 'images/logos/canvas-doca4-banner-2480x600px-300ppi-200w.jpg', folder: 'logos' },
+            { path: 'images/logos/canvas-doca4-banner-2480x600px-300ppi-600w.jpg', folder: 'logos' },
+            { path: 'images/logos/canvas-doca4-banner-2480x600px-300ppi.jpg', folder: 'logos' },
+            { path: 'images/logos/img-200w.jpeg', folder: 'logos' },
+            { path: 'images/logos/img-600w.jpeg', folder: 'logos' },
+            { path: 'images/logos/img.jpeg', folder: 'logos' },
+            { path: 'images/logos/klantteamasml-logo-trans-200w.png', folder: 'logos' },
+            { path: 'images/logos/klantteamasml-logo-trans-600w.png', folder: 'logos' },
+            { path: 'images/logos/klantteamasml-logo-trans.png', folder: 'logos' },
+            { path: 'images/logos/klantteamasml-logo-wit-200w.png', folder: 'logos' },
+            { path: 'images/logos/klantteamasml-logo-wit-600w.png', folder: 'logos' },
+            { path: 'images/logos/klantteamasml-logo-wit.png', folder: 'logos' },
+            { path: 'images/logos/klantteamasml-logo-zwart-200w.png', folder: 'logos' },
+            { path: 'images/logos/klantteamasml-logo-zwart-600w.png', folder: 'logos' },
+            { path: 'images/logos/klantteamasml-logo-zwart.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-beeldmerk-bw-200w.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-beeldmerk-bw-600w.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-beeldmerk-bw.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-beeldmerk-cmyk-200w.jpg', folder: 'logos' },
+            { path: 'images/logos/kuijpers-beeldmerk-cmyk-600w.jpg', folder: 'logos' },
+            { path: 'images/logos/kuijpers-beeldmerk-cmyk.jpg', folder: 'logos' },
+            { path: 'images/logos/kuijpers-beeldmerk-trans-200w.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-beeldmerk-trans-600w.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-beeldmerk-trans.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-beeldmerk-wit-200w.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-beeldmerk-wit-600w.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-beeldmerk-wit.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-duitse-logo-blauw-1-200w.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-duitse-logo-blauw-1-600w.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-duitse-logo-blauw-1.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-duitse-logo-blauw-200w.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-duitse-logo-blauw-600w.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-duitse-logo-blauw.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-engels-logo-blauw-200w.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-engels-logo-blauw-600w.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-engels-logo-blauw.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-engels-logo-wit-200w.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-engels-logo-wit-600w.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-engels-logo-wit.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-klantteam-asml-logo-rgb-200w.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-klantteam-asml-logo-rgb-600w.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-klantteam-asml-logo-rgb.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-klantteam-asml-stempel-200w.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-klantteam-asml-stempel.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-logo-00-200w.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-logo-00-600w.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-logo-00.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-logo-02-200w.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-logo-02-600w.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-logo-02.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-logo-bw-200w.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-logo-bw-600w.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-logo-bw.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-logo-cmyk-200w.jpg', folder: 'logos' },
+            { path: 'images/logos/kuijpers-logo-cmyk-600w.jpg', folder: 'logos' },
+            { path: 'images/logos/kuijpers-logo-cmyk.jpg', folder: 'logos' },
+            { path: 'images/logos/kuijpers-logo-koninklijke-rgb-oranje-wit-0100-200w.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-logo-koninklijke-rgb-oranje-wit-0100-600w.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-logo-koninklijke-rgb-oranje-wit-0100.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-logo-oranjewit-170x44.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-logo-rgb-200w.jpg', folder: 'logos' },
+            { path: 'images/logos/kuijpers-logo-rgb-200w.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-logo-rgb-600w.jpg', folder: 'logos' },
+            { path: 'images/logos/kuijpers-logo-rgb-600w.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-logo-rgb.jpg', folder: 'logos' },
+            { path: 'images/logos/kuijpers-logo-rgb.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-logo-trans-200w.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-logo-trans-600w.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-logo-trans.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-logo-wit-200w.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-logo-wit-600w.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-logo-wit.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-logo-zwart-200w.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-logo-zwart-600w.png', folder: 'logos' },
+            { path: 'images/logos/kuijpers-logo-zwart.png', folder: 'logos' },
+            { path: 'images/logos/kva-tv-2-200w.png', folder: 'logos' },
+            { path: 'images/logos/kva-tv-2.png', folder: 'logos' },
+            { path: 'images/logos/kva-tv-200w.png', folder: 'logos' },
+            { path: 'images/logos/kva-tv-3-200w.png', folder: 'logos' },
+            { path: 'images/logos/kva-tv-3.png', folder: 'logos' },
+            { path: 'images/logos/kva-tv-4-200w.png', folder: 'logos' },
+            { path: 'images/logos/kva-tv-4.png', folder: 'logos' },
+            { path: 'images/logos/kva-tv-wit-200w.png', folder: 'logos' },
+            { path: 'images/logos/kva-tv-wit-trans-200w.png', folder: 'logos' },
+            { path: 'images/logos/kva-tv-wit-trans.png', folder: 'logos' },
+            { path: 'images/logos/kva-tv-wit.png', folder: 'logos' },
+            { path: 'images/logos/kva-tv-zwart-200w.png', folder: 'logos' },
+            { path: 'images/logos/kva-tv-zwart-trans-200w.png', folder: 'logos' },
+            { path: 'images/logos/kva-tv-zwart-trans.png', folder: 'logos' },
+            { path: 'images/logos/kva-tv-zwart.png', folder: 'logos' },
+            { path: 'images/logos/kva-tv.png', folder: 'logos' },
+            { path: 'images/logos/loginsliderimage-200w.jpg', folder: 'logos' },
+            { path: 'images/logos/loginsliderimage-600w.jpg', folder: 'logos' },
+            { path: 'images/logos/loginsliderimage.jpg', folder: 'logos' },
+            { path: 'images/logos/mijn-kuijpers-200w.jpg', folder: 'logos' },
+            { path: 'images/logos/mijn-kuijpers-afbeelding-met-logo-200w.jpg', folder: 'logos' },
+            { path: 'images/logos/mijn-kuijpers-afbeelding-met-logo-600w.jpg', folder: 'logos' },
+            { path: 'images/logos/mijn-kuijpers-afbeelding-met-logo-ai-upscaled-low-resolution-v2-1x-200w.jpg', folder: 'logos' },
+            { path: 'images/logos/mijn-kuijpers-afbeelding-met-logo-ai-upscaled-low-resolution-v2-1x-600w.jpg', folder: 'logos' },
+            { path: 'images/logos/mijn-kuijpers-afbeelding-met-logo-ai-upscaled-low-resolution-v2-1x.jpg', folder: 'logos' },
+            { path: 'images/logos/mijn-kuijpers-afbeelding-met-logo-ai-upscaled-low-resolution-v2-2x-200w.jpg', folder: 'logos' },
+            { path: 'images/logos/mijn-kuijpers-afbeelding-met-logo-ai-upscaled-low-resolution-v2-2x-600w.jpg', folder: 'logos' },
+            { path: 'images/logos/mijn-kuijpers-afbeelding-met-logo-ai-upscaled-low-resolution-v2-2x.jpg', folder: 'logos' },
+            { path: 'images/logos/mijn-kuijpers-afbeelding-met-logo-ai-upscaled-low-resolution-v2-4x-200w.jpg', folder: 'logos' },
+            { path: 'images/logos/mijn-kuijpers-afbeelding-met-logo-ai-upscaled-low-resolution-v2-4x-600w.jpg', folder: 'logos' },
+            { path: 'images/logos/mijn-kuijpers-afbeelding-met-logo-ai-upscaled-low-resolution-v2-4x.jpg', folder: 'logos' },
+            { path: 'images/logos/mijn-kuijpers-afbeelding-met-logo-ai-upscaled-text-shapes-1x-200w.jpg', folder: 'logos' },
+            { path: 'images/logos/mijn-kuijpers-afbeelding-met-logo-ai-upscaled-text-shapes-1x-600w.jpg', folder: 'logos' },
+            { path: 'images/logos/mijn-kuijpers-afbeelding-met-logo-ai-upscaled-text-shapes-1x.jpg', folder: 'logos' },
+            { path: 'images/logos/mijn-kuijpers-afbeelding-met-logo.jpg', folder: 'logos' },
+            { path: 'images/logos/mijn-kuijpers.jpg', folder: 'logos' },
+            { path: 'images/logos/mijnkuijpers-ai-binnen-kuijpers-16x9-crop-200w.png', folder: 'logos' },
+            { path: 'images/logos/mijnkuijpers-ai-binnen-kuijpers-16x9-crop-600w.png', folder: 'logos' },
+            { path: 'images/logos/mijnkuijpers-ai-binnen-kuijpers-16x9-crop.png', folder: 'logos' },
+            { path: 'images/logos/mijnkuijpers-ai-binnen-kuijpers-200w.png', folder: 'logos' },
+            { path: 'images/logos/mijnkuijpers-ai-binnen-kuijpers-600w.png', folder: 'logos' },
+            { path: 'images/logos/mijnkuijpers-ai-binnen-kuijpers.png', folder: 'logos' },
+            { path: 'images/logos/profileorgbackground-200w.png', folder: 'logos' },
+            { path: 'images/logos/profileorgbackground-600w.png', folder: 'logos' },
+            { path: 'images/logos/profileorgbackground-patterncut-1471x577-200w.png', folder: 'logos' },
+            { path: 'images/logos/profileorgbackground-patterncut-1471x577-600w.png', folder: 'logos' },
+            { path: 'images/logos/profileorgbackground-patterncut-1471x577-kleurtrans-200w.png', folder: 'logos' },
+            { path: 'images/logos/profileorgbackground-patterncut-1471x577-kleurtrans-600w.png', folder: 'logos' },
+            { path: 'images/logos/profileorgbackground-patterncut-1471x577-kleurtrans.png', folder: 'logos' },
+            { path: 'images/logos/profileorgbackground-patterncut-1471x577-kleurwit-200w.png', folder: 'logos' },
+            { path: 'images/logos/profileorgbackground-patterncut-1471x577-kleurwit-600w.png', folder: 'logos' },
+            { path: 'images/logos/profileorgbackground-patterncut-1471x577-kleurwit.png', folder: 'logos' },
+            { path: 'images/logos/profileorgbackground-patterncut-1471x577.png', folder: 'logos' },
+            { path: 'images/logos/profileorgbackground.png', folder: 'logos' },
+            { path: 'images/other/998f5f5d-8323-4d74-a650-1bbdfb624c2c-200w.png', folder: 'other' },
+            { path: 'images/other/998f5f5d-8323-4d74-a650-1bbdfb624c2c-600w.png', folder: 'other' },
+            { path: 'images/other/998f5f5d-8323-4d74-a650-1bbdfb624c2c.png', folder: 'other' },
+            { path: 'images/other/Power_OFF.png', folder: 'other' },
+            { path: 'images/other/Power_ON.png', folder: 'other' },
+            { path: 'images/other/algemene-informatie.png', folder: 'other' },
+            { path: 'images/other/bereid-de-belangrijkste-informatie-voor.png', folder: 'other' },
+            { path: 'images/other/bereid-het-team-voor.png', folder: 'other' },
+            { path: 'images/other/blijf-betrokken.png', folder: 'other' },
+            { path: 'images/other/confetti-200w.png', folder: 'other' },
+            { path: 'images/other/confetti.png', folder: 'other' },
+            { path: 'images/other/desk-reservation.png', folder: 'other' },
+            { path: 'images/other/documenten.png', folder: 'other' },
+            { path: 'images/other/element-witte-balk.png', folder: 'other' },
+            { path: 'images/other/handel-de-formaliteiten-af.png', folder: 'other' },
+            { path: 'images/other/handschudden.png', folder: 'other' },
+            { path: 'images/other/huisstijlkleuren.png', folder: 'other' },
+            { path: 'images/other/ict-header0.jpg', folder: 'other' },
+            { path: 'images/other/installeren-van-apps-en-toelichting.png', folder: 'other' },
+            { path: 'images/other/ja.png', folder: 'other' },
+            { path: 'images/other/je-collega-is-ingewerkt.png', folder: 'other' },
+            { path: 'images/other/kennismaken-met-kuijpers.png', folder: 'other' },
+            { path: 'images/other/keuzevakjes-oranje-omkaderd.png', folder: 'other' },
+            { path: 'images/other/kleurcodes-bl0e1a76-orf9971d.png', folder: 'other' },
+            { path: 'images/other/kuijpers-horizontal-style-banner.jpg', folder: 'other' },
+            { path: 'images/other/kuijpers-oranje-kleurcodes.png', folder: 'other' },
+            { path: 'images/other/kuijpers-paars-kleurcodes.png', folder: 'other' },
+            { path: 'images/other/kuijpers-procollen-en-beleid.png', folder: 'other' },
+            { path: 'images/other/kuijpers-sharepoint-banner.png', folder: 'other' },
+            { path: 'images/other/nee.png', folder: 'other' },
+            { path: 'images/other/toegang-en-hardware.png', folder: 'other' },
+            { path: 'images/other/verdieping.png', folder: 'other' },
+            { path: 'images/other/verzorg-een-warm-ontvangst.png', folder: 'other' },
+            { path: 'images/other/vragen.png', folder: 'other' },
+            { path: 'images/other/zoek-contact.png', folder: 'other' },
+            { path: 'images/qr-codes/QR Pasaanvraag.png', folder: 'qr-codes' },
+            { path: 'images/qr-codes/QR Route.png', folder: 'qr-codes' },
+            { path: 'images/qr-codes/QR-Pasaanvraag.png', folder: 'qr-codes' },
+            { path: 'images/qr-codes/QR-Pasaanvraag.svg', folder: 'qr-codes' },
+            { path: 'images/qr-codes/QR-Pasaanvraag_256x256.png', folder: 'qr-codes' },
+            { path: 'images/signs/Parking6W.png', folder: 'signs' },
+            { path: 'images/signs/ParkingP3.png', folder: 'signs' },
+            { path: 'images/signs/ParkingT6.png', folder: 'signs' }
+        ];
+
+        let currentFilter = 'all';
+        let currentView = 'card';
+        let currentSearch = '';
+
+        function getFileName(path) {
+            return path.split('/').pop();
+        }
+
+        function renderListView(filteredImages) {
+            const listView = document.getElementById('listView');
+            listView.innerHTML = '';
+
+            filteredImages.forEach(image => {
+                const url = BASE_URL + image.path;
+                const fileName = getFileName(image.path);
+                
+                const item = document.createElement('div');
+                item.className = 'list-item';
+                item.innerHTML = `
+                    <div class="list-item-info">
+                        <span class="list-item-folder">${image.folder}</span>
+                        <span class="list-item-name">${fileName}</span>
+                        <span class="list-item-url">${url}</span>
+                    </div>
+                    <button class="copy-btn" onclick="copyToClipboard('${url}', this)">Copy URL</button>
+                `;
+                listView.appendChild(item);
+            });
+        }
+
+        function renderCardView(filteredImages) {
+            const cardView = document.getElementById('cardView');
+            cardView.innerHTML = '';
+
+            filteredImages.forEach(image => {
+                const url = BASE_URL + image.path;
+                const fileName = getFileName(image.path);
+                
+                const card = document.createElement('div');
+                card.className = 'card-item';
+                card.innerHTML = `
+                    <div class="card-image-container loading">
+                        <img src="${url}" alt="${fileName}" onload="this.parentElement.classList.remove('loading')" onerror="this.parentElement.innerHTML='<span style=color:#e2e8f0>❌</span>'">
+                    </div>
+                    <div class="card-content">
+                        <span class="card-folder">${image.folder}</span>
+                        <div class="card-name">${fileName}</div>
+                        <div class="card-url">${url}</div>
+                        <button class="copy-btn" onclick="copyToClipboard('${url}', this)">Copy URL</button>
+                    </div>
+                `;
+                cardView.appendChild(card);
+            });
+        }
+
+        function filterAndRender() {
+            let filtered = images;
+
+            // Apply folder filter
+            if (currentFilter !== 'all') {
+                filtered = filtered.filter(img => img.folder === currentFilter);
+            }
+
+            // Apply search filter
+            if (currentSearch) {
+                const searchLower = currentSearch.toLowerCase();
+                filtered = filtered.filter(img => 
+                    getFileName(img.path).toLowerCase().includes(searchLower)
+                );
+            }
+
+            // Update stats
+            document.getElementById('visibleCount').textContent = filtered.length;
+
+            // Show/hide empty state
+            const emptyState = document.getElementById('emptyState');
+            if (filtered.length === 0) {
+                emptyState.style.display = 'block';
+                document.getElementById('listView').style.display = 'none';
+                document.getElementById('cardView').style.display = 'none';
+            } else {
+                emptyState.style.display = 'none';
+                
+                // Render appropriate view
+                if (currentView === 'list') {
+                    renderListView(filtered);
+                } else {
+                    renderCardView(filtered);
+                }
+            }
+        }
+
+        function copyToClipboard(url, button) {
+            navigator.clipboard.writeText(url).then(() => {
+                // Update button
+                const originalText = button.textContent;
+                button.textContent = '✓ Copied!';
+                button.classList.add('copied');
+
+                // Show toast
+                const toast = document.getElementById('toast');
+                toast.classList.add('show');
+
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.classList.remove('copied');
+                    toast.classList.remove('show');
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+                alert('Failed to copy URL to clipboard');
+            });
+        }
+
+        // Event Listeners
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentFilter = btn.dataset.folder;
+                filterAndRender();
+            });
+        });
+
+        document.querySelectorAll('.view-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentView = btn.dataset.view;
+                
+                // Toggle view visibility
+                document.getElementById('listView').classList.toggle('active', currentView === 'list');
+                document.getElementById('cardView').classList.toggle('active', currentView === 'card');
+                
+                filterAndRender();
+            });
+        });
+
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            currentSearch = e.target.value;
+            filterAndRender();
+        });
+
+        // Initial render
+        filterAndRender();
+    </script>
+</body>
+</html>
