@@ -1,1 +1,8 @@
-exclude: [workflows]
+exclude:
+  - kuijpers-assets/workflows
+  - kuijpers-assets/templates
+  - kuijpers-assets/docs
+  - "**/*.ps1"
+  - "**/*.json"
+  - kuijpers-assets/.gitignore
+  - README.md
