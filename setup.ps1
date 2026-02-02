@@ -7,10 +7,17 @@
 $folders = @(
     "images",
     "images/logos",
+    "images/other",
     "images/locations",
     "images/icons",
+    "images/signs",
+    "images/qr-codes",
     "templates",
     "templates/email",
+    "templates/pdf",
+    "templates/screenshots",
+    "workflows",
+    "workflows/schema",
     "docs",
     "docs/safety"
 )
@@ -60,7 +67,7 @@ Set-Content -Path ".gitignore" -Value $gitignoreContent
 Write-Host "✅ .gitignore aangemaakt/bijgewerkt" -ForegroundColor Green
 
 # 3. README.md updaten
-$readmeContent = @"
+$readmeContent = @'
 # Kuijpers Assets Library 🏗️
 
 Centrale opslag voor statische bestanden, afbeeldingen en templates t.b.v. Kuijpers Klantvestiging ASML.
@@ -68,25 +75,43 @@ Deze repository fungeert als **CDN** (Content Delivery Network) voor Power Autom
 
 ## 📂 Mappenstructuur
 
-- **\`/images/logos\`**: Bedrijfslogo's (Kuijpers, partners) en social icons.
-- **\`/images/locations\`**: Statische routekaartjes (P3, 6W) en plattegronden.
-- **\`/images/icons\`**: Iconen voor gebruik in HTML mails (vinkjes, waarschuwingen).
-- **\`/templates/email\`**: HTML bronbestanden voor e-mail templates.
-- **\`/docs\`**: Publiek toegankelijke PDF documenten (bijv. veiligheidsinstructies).
+- `images/`
+  - `logos/`: Bedrijfslogo's (Kuijpers, partners) en varianten.
+  - `icons/`: Iconen voor gebruik in HTML mails en UI (incl. social).
+  - `locations/`: Routekaartjes, markers en plattegronden.
+  - `signs/`: Parkeer- en bebording-afbeeldingen.
+  - `qr-codes/`: QR-codes (PNG/SVG).
+  - `other/`: Overige visuals, banners en illustraties.
+- `templates/`
+  - `email/`: HTML bronbestanden voor e-mail templates.
+  - `pdf/`: PDF-uitvoer van templates of formulieren.
+  - `screenshots/`: Screenshots voor documentatie en instructies.
+- `workflows/`: Export van Power Automate flows (JSON) met `schema/`.
+- `docs/`: Publieke documenten (gereserveerd, momenteel leeg).
+- `KVA-QuickFlowLinker.html`: Flow dashboard voor directe toegang.
 
 ## 🚀 Gebruik (GitHub Pages)
 
 Zodra **GitHub Pages** is ingeschakeld voor deze repo, zijn de bestanden direct benaderbaar via:
 
-\`https://royalkuijpers.github.io/kuijpers-assets/[pad]/[bestand]\`
+`https://royalkuijpers.github.io/kuijpers-assets/<pad>/<bestand>`
 
-### Voorbeelden:
-- Logo: \`https://royalkuijpers.github.io/kuijpers-assets/images/logos/kuijpers-logo.png\`
-- Template code: Bekijk de \`/templates\` map in deze repo voor de broncode.
+### Voorbeelden
+- Logo: `https://royalkuijpers.github.io/kuijpers-assets/images/logos/kuijpers-logo.png`
+- QR-code: `https://royalkuijpers.github.io/kuijpers-assets/images/qr-codes/QR-Pasaanvraag.png`
+- Flow dashboard: `https://royalkuijpers.github.io/kuijpers-assets/KVA-QuickFlowLinker.html`
+
+Let op: bestandsnamen met spaties of speciale tekens moeten URL-encoded worden (bijv. spatie → `%20`).
+
+## 🛠️ Scripts
+
+- `setup.ps1`: (Her)initialiseert mappenstructuur en basisbestanden.
+- `maintenance.ps1`: Controleert en corrigeert bestandsnamen (kebab-case).
+- `copy-images.ps1`: Slimme copy + sorteer/resize pipeline voor assets.
 
 ---
 *Beheerd door Marco van Meurs*
-"@
+'@
 
 Set-Content -Path "README.md" -Value $readmeContent
 Write-Host "✅ README.md bijgewerkt met instructies" -ForegroundColor Green

@@ -4,9 +4,9 @@
 # Doel: Slimme synchronisatie, hash-checks, auto-sorteren in submappen
 #       (logos, icons, locations) en opschonen bestandsnamen.
 # Gebruik:
-#   .\copy_assets_smart.ps1 -SourcePath "C:\Source" -DestinationPath "X:\Repo\images"
-#   .\copy_assets_smart.ps1 -CleanTarget
-#   .\copy_assets_smart.ps1 -DeleteWebP
+#   .\copy-images.ps1 -SourcePath "C:\Source" -DestinationPath "X:\Repo\images"
+#   .\copy-images.ps1 -CleanTarget
+#   .\copy-images.ps1 -DeleteWebP
 # ==========================================
 
 param (
