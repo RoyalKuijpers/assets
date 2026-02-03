@@ -24,14 +24,14 @@ Once GitHub Pages is enabled, the workflow will automatically:
 After the first successful deployment, your assets will be available at:
 
 ```
-https://royalkuijpers.github.io/kuijpers-assets/
+https://royalkuijpers.github.io/assets/
 ```
 
 ### Example URLs:
-- Landing page: `https://royalkuijpers.github.io/kuijpers-assets/`
-- Flow dashboard: `https://royalkuijpers.github.io/kuijpers-assets/KVA-QuickFlowLinker.html`
-- Logo: `https://royalkuijpers.github.io/kuijpers-assets/images/logos/kuijpers-logo.png`
-- QR code: `https://royalkuijpers.github.io/kuijpers-assets/images/qr-codes/QR-Pasaanvraag.png`
+- Landing page: `https://royalkuijpers.github.io/assets/`
+- Flow dashboard: `https://royalkuijpers.github.io/assets/KVA-QuickFlowLinker.html`
+- Logo: `https://royalkuijpers.github.io/assets/images/logos/kuijpers-logo.png`
+- QR code: `https://royalkuijpers.github.io/assets/images/qr-codes/QR-Pasaanvraag.png`
 
 ## Monitoring Deployments
 

@@ -94,12 +94,12 @@ Deze repository fungeert als **CDN** (Content Delivery Network) voor Power Autom
 
 Zodra **GitHub Pages** is ingeschakeld voor deze repo, zijn de bestanden direct benaderbaar via:
 
-`https://royalkuijpers.github.io/kuijpers-assets/<pad>/<bestand>`
+`https://royalkuijpers.github.io/assets/<pad>/<bestand>`
 
 ### Voorbeelden
-- Logo: `https://royalkuijpers.github.io/kuijpers-assets/images/logos/kuijpers-logo.png`
-- QR-code: `https://royalkuijpers.github.io/kuijpers-assets/images/qr-codes/QR-Pasaanvraag.png`
-- Flow dashboard: `https://royalkuijpers.github.io/kuijpers-assets/KVA-QuickFlowLinker.html`
+- Logo: `https://royalkuijpers.github.io/assets/images/logos/kuijpers-logo.png`
+- QR-code: `https://royalkuijpers.github.io/assets/images/qr-codes/QR-Pasaanvraag.png`
+- Flow dashboard: `https://royalkuijpers.github.io/assets/KVA-QuickFlowLinker.html`
 
 Let op: bestandsnamen met spaties of speciale tekens moeten URL-encoded worden (bijv. spatie → `%20`).
 

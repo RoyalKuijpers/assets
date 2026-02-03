@@ -317,7 +317,7 @@
           <h3>Source <small id="sourceStatus">loading…</small></h3>
 
           <label for="repoBase">GitHub Pages base</label>
-          <input id="repoBase" type="text" value="https://royalkuijpers.github.io/kuijpers-assets/" />
+          <input id="repoBase" type="text" value="https://royalkuijpers.github.io/assets/" />
 
           <label for="templatesPath">Templates folder</label>
           <input id="templatesPath" type="text" value="templates/email" />
@@ -532,7 +532,7 @@
     const path = templatesPath.value.trim().replace(/^\/+|\/+$/g, '');
     const ref = refBranch.value.trim() || 'main';
 
-    const api = `https://api.github.com/repos/RoyalKuijpers/kuijpers-assets/contents/${encodePath(path)}?ref=${encodeURIComponent(ref)}`;
+    const api = `https://api.github.com/repos/RoyalKuijpers/assets/contents/${encodePath(path)}?ref=${encodeURIComponent(ref)}`;
 
     const seen = new Set();
     const results = [];
