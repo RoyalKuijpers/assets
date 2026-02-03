@@ -466,10 +466,114 @@
                 display: flex;
                 gap: 12px;
             }
+
+            /* Authentication Overlay */
+            .auth-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: var(--neutral-layer-1);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10000;
+            }
+
+            .auth-overlay.hidden {
+                display: none;
+            }
+
+            .auth-container {
+                background: var(--neutral-layer-2);
+                padding: 40px;
+                border-radius: 8px;
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+                max-width: 500px;
+                width: 90%;
+            }
+
+            .auth-container h2 {
+                margin: 0 0 12px 0;
+                color: var(--neutral-foreground-rest);
+                font-size: 24px;
+            }
+
+            .auth-container p {
+                margin: 0 0 24px 0;
+                color: var(--neutral-foreground-2);
+                font-size: 14px;
+                line-height: 1.5;
+            }
+
+            .auth-error {
+                background: rgba(168, 0, 0, 0.1);
+                border: 1px solid rgba(168, 0, 0, 0.3);
+                color: var(--status-poison);
+                padding: 12px;
+                border-radius: 4px;
+                margin-bottom: 16px;
+                display: none;
+            }
+
+            .auth-error.visible {
+                display: block;
+            }
+
+            .auth-form-group {
+                margin-bottom: 20px;
+            }
+
+            .auth-form-group label {
+                display: block;
+                margin-bottom: 8px;
+                color: var(--neutral-foreground-rest);
+                font-weight: 600;
+            }
+
+            .auth-actions {
+                display: flex;
+                gap: 12px;
+                margin-top: 24px;
+            }
+
+            .logout-button {
+                margin-left: 12px;
+            }
         </style>
     </head>
 
     <body>
+
+        <!-- Authentication Overlay -->
+        <div class="auth-overlay" id="authOverlay">
+            <div class="auth-container">
+                <h2>🔐 Authentication Required</h2>
+                <p>This page requires a GitHub Personal Access Token (PAT) to access. Please enter your token below.</p>
+                
+                <div class="auth-error" id="authError"></div>
+
+                <div class="auth-form-group">
+                    <label for="githubToken">GitHub Personal Access Token</label>
+                    <fluent-text-field 
+                        id="githubToken" 
+                        type="password" 
+                        placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+                        style="width: 100%">
+                    </fluent-text-field>
+                    <p style="margin-top: 8px; font-size: 12px; color: var(--neutral-foreground-2);">
+                        Need a token? <a href="https://github.com/settings/tokens/new" target="_blank" style="color: var(--accent-fill-rest);">Create one here</a> (no special scopes required for basic access)
+                    </p>
+                </div>
+
+                <div class="auth-actions">
+                    <fluent-button appearance="accent" onclick="authenticate()" id="authButton">
+                        Authenticate
+                    </fluent-button>
+                </div>
+            </div>
+        </div>
 
         <div class="app-container">
 
@@ -494,6 +598,10 @@
 
                     <fluent-button appearance="neutral" onclick="app.toggleView()">
                         <app-icon name="tool" id="viewIcon"></app-icon> <span id="viewText">Settings</span>
+                    </fluent-button>
+
+                    <fluent-button appearance="outline" onclick="logout()" class="logout-button">
+                        Logout
                     </fluent-button>
 
                     <fluent-switch id="themeSwitch" onchange="app.toggleTheme()">
@@ -1050,6 +1158,129 @@
             const app = new FlowDashboard();
             window.app = app;
             app.init();
+        </script>
+
+        <script>
+            // Authentication functions in global scope (non-module script)
+            const AUTH_STORAGE_KEY = 'github_auth_token';
+
+            window.authenticate = async function() {
+                const tokenInput = document.getElementById('githubToken');
+                const token = tokenInput.value.trim();
+                const errorDiv = document.getElementById('authError');
+                const authButton = document.getElementById('authButton');
+
+                if (!token) {
+                    showAuthError('Please enter a GitHub token.');
+                    return;
+                }
+
+                // Disable button and show loading state
+                authButton.textContent = 'Authenticating...';
+                authButton.disabled = true;
+                errorDiv.classList.remove('visible');
+
+                try {
+                    // Validate token by making a simple API call to GitHub
+                    const response = await fetch('https://api.github.com/user', {
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Accept': 'application/vnd.github.v3+json'
+                        }
+                    });
+
+                    if (response.ok) {
+                        // Token is valid
+                        sessionStorage.setItem(AUTH_STORAGE_KEY, token);
+                        hideAuthOverlay();
+                        tokenInput.value = ''; // Clear the input for security
+                    } else if (response.status === 401) {
+                        showAuthError('Invalid GitHub token. Please check your token and try again.');
+                    } else if (response.status === 403) {
+                        showAuthError('GitHub API rate limit exceeded or token lacks permissions.');
+                    } else {
+                        showAuthError(`Authentication failed: ${response.statusText}`);
+                    }
+                } catch (error) {
+                    showAuthError(`Network error: ${error.message}. Please check your connection.`);
+                } finally {
+                    authButton.textContent = 'Authenticate';
+                    authButton.disabled = false;
+                }
+            };
+
+            function showAuthError(message) {
+                const errorDiv = document.getElementById('authError');
+                errorDiv.textContent = message;
+                errorDiv.classList.add('visible');
+            }
+
+            function hideAuthOverlay() {
+                document.getElementById('authOverlay').classList.add('hidden');
+            }
+
+            function showAuthOverlay() {
+                document.getElementById('authOverlay').classList.remove('hidden');
+            }
+
+            window.logout = function() {
+                if (confirm('Are you sure you want to logout?')) {
+                    sessionStorage.removeItem(AUTH_STORAGE_KEY);
+                    showAuthOverlay();
+                }
+            };
+
+            function checkAuthentication() {
+                const token = sessionStorage.getItem(AUTH_STORAGE_KEY);
+                if (token) {
+                    // Re-validate the token to ensure it's still valid
+                    validateStoredToken(token);
+                } else {
+                    // No token, show the auth overlay
+                    showAuthOverlay();
+                }
+            }
+
+            async function validateStoredToken(token) {
+                try {
+                    // Validate the stored token is still valid
+                    const response = await fetch('https://api.github.com/user', {
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Accept': 'application/vnd.github.v3+json'
+                        }
+                    });
+
+                    if (response.ok) {
+                        // Token is still valid, hide auth overlay
+                        hideAuthOverlay();
+                    } else {
+                        // Token is invalid or expired, clear it and show auth overlay
+                        sessionStorage.removeItem(AUTH_STORAGE_KEY);
+                        showAuthOverlay();
+                    }
+                } catch (error) {
+                    // On network error, assume token might be valid (offline scenario)
+                    // but show a warning in console
+                    console.warn('Could not validate token on page load:', error.message);
+                    hideAuthOverlay();
+                }
+            }
+
+            // Add Enter key support for authentication
+            document.addEventListener('DOMContentLoaded', function() {
+                const tokenInput = document.getElementById('githubToken');
+                if (tokenInput) {
+                    tokenInput.addEventListener('keypress', function(e) {
+                        if (e.key === 'Enter') {
+                            window.authenticate();
+                        }
+                    });
+                }
+                
+                // Check authentication status on page load
+                checkAuthentication();
+            });
         </script>
     </body>
 
