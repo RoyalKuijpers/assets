@@ -1,245 +1,958 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Email Template Multi-Device Preview</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kuijpers Email Template Device Preview</title>
 
-  <!-- Telephone (Phones) -->
-  <script type="module"
-    src="https://cdn.jsdelivr.net/npm/@sneas/telephone@1/iphone-16-max.js">
-  </script>
-  <script type="module"
-    src="https://cdn.jsdelivr.net/npm/@sneas/telephone@1/pixel-9-pro.js">
-  </script>
+  <!-- Telephone (iPhone/Pixel frames) -->
+  <script defer src="https://cdn.jsdelivr.net/npm/@sneas/telephone@1/iphone-16-max.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@sneas/telephone@1/pixel-9-pro.js"></script>
 
-  <!-- Device-Mockup (Tablet + Laptop) -->
-  <script type="module"
-    src="https://cdn.jsdelivr.net/npm/@devmansam/device-mockup@1/dist/device-mockup.js">
-  </script>
+  <!-- Device Mockup (phone/tablet/laptop) -->
+  <script defer src="https://cdn.jsdelivr.net/gh/DevManSam777/device-mockup@main/device-mockup.js"></script>
 
   <style>
-    body {
-      margin: 0;
-      font-family: system-ui, sans-serif;
-      height: 100vh;
-      display: flex;
-      overflow: hidden;
+    :root{
+      --panel-bg: rgba(255,255,255,.12);
+      --panel-border: rgba(255,255,255,.22);
+      --panel-text: rgba(255,255,255,.92);
+      --panel-muted: rgba(255,255,255,.72);
+      --shadow: 0 20px 60px rgba(0,0,0,.35);
+      --radius: 16px;
+      --accent: #ff7a00;
+      --danger: #ff4d4f;
+      --ok: #34c759;
+
+      --float-amp: 10px;
+      --float-speed: 3.2s;
+
+      --dm-bezel: #111827;
+      --dm-camera: #0b1220;
+      --dm-keyboard: #101827;
+      --dm-keyboard-grad: #0b1220;
+      --dm-shadow: rgba(0,0,0,.35);
+      --dm-screen-bg: #ffffff;
+
+      --tel-scale: 1;
+      --viewport-w: 390;
+      --viewport-h: 844;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      color: white;
+      overflow:hidden;
       background:
-        url("https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=2400&q=60")
-        center/cover no-repeat;
+        radial-gradient(1200px 700px at 15% 10%, rgba(255,122,0,.35), transparent 55%),
+        radial-gradient(1000px 800px at 85% 15%, rgba(0,120,212,.28), transparent 55%),
+        radial-gradient(900px 900px at 50% 85%, rgba(64,196,255,.18), transparent 60%),
+        linear-gradient(135deg, #0b1220 0%, #0a0f1a 60%, #070a12 100%);
+      position:relative;
     }
-    body::before {
+
+    /* Acrylic overlay + noise */
+    body::before{
       content:"";
-      position:fixed;
-      inset:0;
+      position:absolute; inset:0;
+      background:
+        linear-gradient(0deg, rgba(255,255,255,.05), rgba(255,255,255,.03)),
+        radial-gradient(900px 600px at 20% 30%, rgba(255,255,255,.06), transparent 65%),
+        radial-gradient(900px 600px at 80% 20%, rgba(255,255,255,.05), transparent 65%);
       backdrop-filter: blur(18px);
-      background: rgba(0,0,0,.55);
+      -webkit-backdrop-filter: blur(18px);
+      pointer-events:none;
+    }
+    body::after{
+      content:"";
+      position:absolute; inset:0;
+      opacity:.08;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E");
+      pointer-events:none;
+      mix-blend-mode: overlay;
     }
 
-    /* Left Panel */
-    .panel {
-      width: 360px;
-      background: rgba(255,255,255,.92);
-      padding: 16px;
-      z-index: 10;
-      overflow-y: auto;
+    .app{
+      position:relative;
+      height:100%;
+      display:grid;
+      grid-template-columns: 380px 1fr;
+      gap:18px;
+      padding:18px;
     }
 
-    select,input {
-      width: 100%;
-      padding: 10px;
-      margin-top: 10px;
+    .panel{
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      overflow:hidden;
+      display:flex;
+      flex-direction:column;
+      min-width: 320px;
     }
 
-    /* Preview Area */
-    .preview {
-      flex: 1;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      z-index: 5;
-      transition: transform .4s ease;
+    .panel header{
+      padding:14px 16px;
+      border-bottom: 1px solid rgba(255,255,255,.16);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .title{
+      display:flex; flex-direction:column;
+      line-height:1.1;
+    }
+    .title b{font-size:14px; letter-spacing:.2px}
+    .title span{font-size:12px; color:var(--panel-muted)}
+    .badge{
+      font-size:11px;
+      color:#0b1220;
+      background: rgba(255,255,255,.85);
+      padding:6px 10px;
+      border-radius:999px;
     }
 
-    iframe {
-      width: 100%;
-      height: 100%;
-      border: none;
-      background: white;
+    .panel .content{
+      padding:14px 16px 18px;
+      overflow:auto;
     }
 
-    /* Animations (Device-Mockup pattern) */
-    .floaty {
-      animation: floaty 3s ease-in-out infinite;
-    }
-    @keyframes floaty {
-      0%,100% { transform: translateY(0); }
-      50% { transform: translateY(-12px); }
-    }
-
-    /* Responsive Warnings */
-    .warnings {
-      margin-top: 14px;
+    .group{
+      margin: 0 0 16px;
       padding: 12px;
+      border-radius: 14px;
+      background: rgba(0,0,0,.18);
+      border: 1px solid rgba(255,255,255,.10);
+    }
+    .group h3{
+      margin:0 0 10px;
+      font-size:12px;
+      font-weight:700;
+      letter-spacing:.3px;
+      text-transform:uppercase;
+      color: rgba(255,255,255,.86);
+      display:flex; align-items:center; justify-content:space-between;
+    }
+    .group h3 small{
+      text-transform:none;
+      letter-spacing:0;
+      font-weight:600;
+      color: rgba(255,255,255,.65);
+      font-size:11px;
+    }
+
+    label{
+      display:block;
+      font-size:12px;
+      color: rgba(255,255,255,.84);
+      margin: 10px 0 6px;
+    }
+    select, input[type="text"], input[type="number"]{
+      width:100%;
+      padding:10px 10px;
       border-radius: 12px;
-      background: #fff3cd;
-      font-size: 13px;
-      display:none;
+      border: 1px solid rgba(255,255,255,.18);
+      background: rgba(255,255,255,.10);
+      color: white;
+      outline:none;
+    }
+    select option{color:#0b1220}
+    input[type="color"]{
+      width:100%;
+      height:40px;
+      padding:0;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.18);
+      background: rgba(255,255,255,.10);
+    }
+    .row{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+    }
+    .hint{
+      font-size:11px;
+      color: rgba(255,255,255,.70);
+      margin-top:8px;
+      line-height:1.35;
+    }
+
+    .toggle{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding:10px 10px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      margin-top:10px;
+    }
+    .toggle span{font-size:12px; color: rgba(255,255,255,.84)}
+    .toggle input{width:42px; height:24px}
+
+    .warn{
+      border-left: 4px solid var(--danger);
+      padding:10px 10px 10px 12px;
+      border-radius: 12px;
+      background: rgba(255,77,79,.12);
+      border: 1px solid rgba(255,77,79,.25);
+      margin-top:10px;
+    }
+    .ok{
+      border-left: 4px solid var(--ok);
+      padding:10px 10px 10px 12px;
+      border-radius: 12px;
+      background: rgba(52,199,89,.10);
+      border: 1px solid rgba(52,199,89,.22);
+      margin-top:10px;
+    }
+    .warn ul, .ok ul{
+      margin:8px 0 0 16px;
+      padding:0;
+      color: rgba(255,255,255,.82);
+      font-size:12px;
+    }
+    .warn li, .ok li{margin:4px 0}
+    .mono{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 11px;
+      color: rgba(255,255,255,.72);
+      overflow-wrap:anywhere;
+    }
+
+    .stage{
+      position:relative;
+      border-radius: var(--radius);
+      overflow:hidden;
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(255,255,255,.18);
+      background: rgba(255,255,255,.06);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:16px;
+      min-height: 480px;
+    }
+
+    .deviceWrap{
+      position:relative;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      width:100%;
+      height:100%;
+    }
+
+    /* Custom animations (per Device Mockup docs) */
+    @keyframes floaty{
+      0%,100%{ transform: translateY(0) }
+      50%{ transform: translateY(calc(-1 * var(--float-amp))) }
+    }
+    @keyframes tilt{
+      0%,100%{ transform: rotate(-0.3deg) translateY(0) }
+      50%{ transform: rotate(0.6deg) translateY(calc(-1 * var(--float-amp))) }
+    }
+
+    .animated{ animation: floaty var(--float-speed) ease-in-out infinite; }
+    .animated.tilt{ animation-name: tilt; }
+
+    /* Device Mockup theme via CSS vars */
+    device-mockup{
+      --bezel-color: var(--dm-bezel);
+      --camera-color: var(--dm-camera);
+      --keyboard-color: var(--dm-keyboard);
+      --keyboard-gradient: var(--dm-keyboard-grad);
+      --shadow-color: var(--dm-shadow);
+      --screen-background: var(--dm-screen-bg);
+    }
+
+    /* Telephone inner viewport */
+    .tel-host{ transform: scale(var(--tel-scale)); transform-origin:center; }
+    .tel-viewport{
+      width: calc(var(--viewport-w) * 1px);
+      height: calc(var(--viewport-h) * 1px);
+      background: #ffffff;
+      border-radius: 18px;
+      overflow:hidden;
+    }
+    .tel-viewport iframe{
+      width:100%;
+      height:100%;
+      border:0;
+      display:block;
+      background:#fff;
+    }
+
+    @media (max-width: 980px){
+      body{ overflow:auto }
+      .app{ grid-template-columns: 1fr; height:auto; }
+      .stage{ min-height: 520px; }
     }
   </style>
 </head>
 
 <body>
-  <!-- Controls -->
-  <div class="panel">
-    <h3>Template Picker</h3>
+  <div class="app">
+    <aside class="panel" aria-label="Controls">
+      <header>
+        <div class="title">
+          <b>Template preview</b>
+          <span>Device mockups + responsive checks</span>
+        </div>
+        <div class="badge">v2</div>
+      </header>
 
-    <select id="templateSelect"></select>
+      <div class="content">
+        <div class="group">
+          <h3>Source <small id="sourceStatus">loading…</small></h3>
 
-    <h3>Device Picker</h3>
-    <select id="deviceSelect">
-      <option value="iphone">Phone – iPhone 16 Max</option>
-      <option value="pixel">Phone – Pixel 9 Pro</option>
-      <option value="tablet">Tablet – iPad Style</option>
-      <option value="laptop">Laptop – Macbook Style</option>
-    </select>
+          <label for="repoBase">GitHub Pages base</label>
+          <input id="repoBase" type="text" value="https://royalkuijpers.github.io/kuijpers-assets/" />
 
-    <label>Scale</label>
-    <input id="scale" type="range" min="0.5" max="1.2"
-           step="0.05" value="1"/>
+          <label for="templatesPath">Templates folder</label>
+          <input id="templatesPath" type="text" value="templates/email" />
 
-    <label>Animation</label>
-    <select id="animSelect">
-      <option value="off">Off</option>
-      <option value="float">Floating</option>
-    </select>
+          <label for="refBranch">Repo ref (branch/tag)</label>
+          <input id="refBranch" type="text" value="main" />
 
-    <div id="warnings" class="warnings"></div>
-  </div>
+          <div class="hint">
+            Templates are discovered via GitHub Contents API (and loaded via GitHub's <span class="mono">download_url</span>) so the preview works even when a site blocks iframes. Device Mockup's iframe mode otherwise has common X-Frame limitations.
+          </div>
+        </div>
 
-  <!-- Preview -->
-  <div class="preview" id="previewArea">
-    <iphone-16-max id="frame">
-      <iframe id="screen"></iframe>
-    </iphone-16-max>
+        <div class="group">
+          <h3>Template</h3>
+
+          <label for="templateSelect">Pick template</label>
+          <select id="templateSelect"></select>
+
+          <label for="templateUrl">Resolved URL</label>
+          <input id="templateUrl" type="text" readonly />
+
+          <div class="hint" id="templateHint"></div>
+        </div>
+
+        <div class="group">
+          <h3>Device</h3>
+
+          <label for="deviceSelect">Device picker</label>
+          <select id="deviceSelect">
+            <option value="tel-iphone">iPhone 16 Max (Telephone)</option>
+            <option value="tel-pixel">Pixel 9 Pro (Telephone)</option>
+            <option value="dm-phone">Phone (Device Mockup)</option>
+            <option value="dm-tablet">Tablet (Device Mockup)</option>
+            <option value="dm-laptop">Laptop (Device Mockup)</option>
+          </select>
+
+          <div id="telControls" style="display:none">
+            <div class="row">
+              <div>
+                <label for="telMode">Status bar</label>
+                <select id="telMode">
+                  <option value="light">Light (dark text)</option>
+                  <option value="dark">Dark (white text)</option>
+                </select>
+              </div>
+              <div>
+                <label for="telScale">Scale</label>
+                <select id="telScale">
+                  <option value="0.8">Small</option>
+                  <option value="1" selected>Medium</option>
+                  <option value="1.15">Large</option>
+                </select>
+              </div>
+            </div>
+
+            <label for="viewportPreset">Viewport preset</label>
+            <select id="viewportPreset"></select>
+            <div class="hint">
+              Controls the iframe viewport inside the Telephone frame (useful for testing email breakpoints).
+            </div>
+          </div>
+
+          <div id="dmControls" style="display:none">
+            <label for="dmSizePreset">Render size</label>
+            <select id="dmSizePreset"></select>
+            <div class="hint" id="dmSizeHint"></div>
+
+            <label for="dmAnim">Animation</label>
+            <select id="dmAnim">
+              <option value="none">None</option>
+              <option value="float" selected>Float</option>
+              <option value="tilt">Float + tilt</option>
+            </select>
+
+            <div class="toggle">
+              <span>Enable animation</span>
+              <input id="dmAnimOn" type="checkbox" checked />
+            </div>
+
+            <div id="dmColorControls" style="margin-top:10px">
+              <h3 style="margin:12px 0 8px; font-size:12px; text-transform:uppercase; letter-spacing:.3px;">Colors</h3>
+
+              <div class="row">
+                <div>
+                  <label for="cBezel">Bezel</label>
+                  <input id="cBezel" type="color" value="#111827"/>
+                </div>
+                <div>
+                  <label for="cCamera">Camera</label>
+                  <input id="cCamera" type="color" value="#0b1220"/>
+                </div>
+              </div>
+
+              <div class="row" id="kbRow" style="margin-top:4px">
+                <div>
+                  <label for="cKeyboard">Keyboard</label>
+                  <input id="cKeyboard" type="color" value="#101827"/>
+                </div>
+                <div>
+                  <label for="cKeyboardGrad">Keyboard gradient</label>
+                  <input id="cKeyboardGrad" type="color" value="#0b1220"/>
+                </div>
+              </div>
+
+              <div class="row" style="margin-top:4px">
+                <div>
+                  <label for="cShadow">Shadow</label>
+                  <input id="cShadow" type="color" value="#000000"/>
+                </div>
+                <div>
+                  <label for="shadowAlpha">Shadow alpha</label>
+                  <input id="shadowAlpha" type="number" min="0" max="1" step="0.05" value="0.35"/>
+                </div>
+              </div>
+
+              <label for="cScreenBg">Screen background</label>
+              <input id="cScreenBg" type="color" value="#ffffff"/>
+
+              <div class="hint">
+                Controls hide automatically depending on the selected device type.
+              </div>
+            </div>
+
+            <div class="hint" style="margin-top:10px">
+              Device Mockup iframe mode uses fixed internal viewports (Laptop 1280×800, Phone 375×812, Tablet 768×1024) and scales to fit.
+            </div>
+          </div>
+        </div>
+
+        <div class="group">
+          <h3>Responsive checks</h3>
+          <div id="checksBox"></div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="stage" aria-label="Preview">
+      <div class="deviceWrap" id="deviceHost"></div>
+    </main>
   </div>
 
 <script>
-const API =
- "https://api.github.com/repos/RoyalKuijpers/kuijpers-assets/contents/templates/email";
+(() => {
+  const el = (id) => document.getElementById(id);
 
-const templateSelect = document.getElementById("templateSelect");
-const deviceSelect   = document.getElementById("deviceSelect");
-const iframe         = document.getElementById("screen");
-const previewArea    = document.getElementById("previewArea");
-const warningsBox    = document.getElementById("warnings");
+  const repoBase = el('repoBase');
+  const templatesPath = el('templatesPath');
+  const refBranch = el('refBranch');
+  const sourceStatus = el('sourceStatus');
 
-/* ---------------------------
-   Load templates dynamically
-----------------------------*/
-async function loadTemplateList() {
-  const files = await fetch(API).then(r => r.json());
-  const htmlFiles = files.filter(f => f.name.endsWith(".html"));
+  const templateSelect = el('templateSelect');
+  const templateUrl = el('templateUrl');
+  const templateHint = el('templateHint');
 
-  templateSelect.innerHTML =
-    htmlFiles.map(f => {
-      const url =
-        `https://royalkuijpers.github.io/kuijpers-assets/templates/email/${encodeURIComponent(f.name)}`;
-      return `<option value="${url}">${f.name}</option>`;
-    }).join("");
+  const deviceSelect = el('deviceSelect');
 
-  loadTemplate();
-}
+  const telControls = el('telControls');
+  const telMode = el('telMode');
+  const telScale = el('telScale');
+  const viewportPreset = el('viewportPreset');
 
-/* ---------------------------
-   Load template via srcdoc
-----------------------------*/
-async function loadTemplate() {
-  const url = templateSelect.value;
-  const html = await fetch(url).then(r => r.text());
+  const dmControls = el('dmControls');
+  const dmSizePreset = el('dmSizePreset');
+  const dmSizeHint = el('dmSizeHint');
+  const dmAnim = el('dmAnim');
+  const dmAnimOn = el('dmAnimOn');
 
-  iframe.srcdoc = html;
-  responsiveChecks(html);
-}
+  const kbRow = el('kbRow');
+  const cBezel = el('cBezel');
+  const cCamera = el('cCamera');
+  const cKeyboard = el('cKeyboard');
+  const cKeyboardGrad = el('cKeyboardGrad');
+  const cShadow = el('cShadow');
+  const shadowAlpha = el('shadowAlpha');
+  const cScreenBg = el('cScreenBg');
 
-/* ---------------------------
-   Responsive detector
-----------------------------*/
-function responsiveChecks(html) {
-  const issues = [];
-  if (!html.includes("viewport"))
-    issues.push("Missing <meta viewport>.");
-  if (!html.match(/max-width:\s*600px/))
-    issues.push("No max-width:600px email wrapper.");
-  if (!html.match(/max-width:\s*100%/))
-    issues.push("Images missing max-width:100%.");
-  if (!html.includes("<table"))
-    issues.push("No <table> layout → Outlook risk.");
+  const checksBox = el('checksBox');
+  const deviceHost = el('deviceHost');
 
-  if (issues.length) {
-    warningsBox.style.display = "block";
-    warningsBox.innerHTML =
-      "<b>Responsive Warnings:</b><ul>" +
-      issues.map(x => `<li>${x}</li>`).join("") +
-      "</ul><b>Tips:</b> Use tables, inline CSS, max-width wrappers, viewport meta.";
-  } else {
-    warningsBox.style.display = "none";
-  }
-}
+  let templates = [];
+  let currentBlobUrl = null;
 
-/* ---------------------------
-   Device switcher
-----------------------------*/
-deviceSelect.addEventListener("change", () => {
-  const current = document.getElementById("frame");
+  const viewportPresets = [
+    { label: 'iPhone 16 Pro Max (440×956)', w: 440, h: 956 },
+    { label: 'iPhone 14/15/16 Pro (393×852)', w: 393, h: 852 },
+    { label: 'iPhone 12/13/14 (390×844)', w: 390, h: 844 },
+    { label: 'Pixel 9 Pro (412×915)', w: 412, h: 915 },
+    { label: 'Small phone (360×800)', w: 360, h: 800 },
+    { label: 'Email breakpoint (600×900)', w: 600, h: 900 }
+  ];
 
-  let newFrame;
-
-  if (deviceSelect.value === "iphone")
-    newFrame = document.createElement("iphone-16-max");
-
-  else if (deviceSelect.value === "pixel")
-    newFrame = document.createElement("pixel-9-pro");
-
-  else if (deviceSelect.value === "tablet") {
-    newFrame = document.createElement("device-mockup");
-    newFrame.setAttribute("device", "tablet");
-    newFrame.setAttribute("width", "700");   // sizing API :contentReference[oaicite:3]{index=3}
+  function setRootVar(name, value){
+    document.documentElement.style.setProperty(name, value);
   }
 
-  else if (deviceSelect.value === "laptop") {
-    newFrame = document.createElement("device-mockup");
-    newFrame.setAttribute("device", "laptop");
-    newFrame.setAttribute("width", "900");   // sizing API :contentReference[oaicite:4]{index=4}
+  function rgbaFromHex(hex, alpha){
+    hex = hex.replace('#','').trim();
+    if(hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+    const r = parseInt(hex.slice(0,2), 16);
+    const g = parseInt(hex.slice(2,4), 16);
+    const b = parseInt(hex.slice(4,6), 16);
+    const a = Math.max(0, Math.min(1, Number(alpha)));
+    return `rgba(${r}, ${g}, ${b}, ${a})`;
   }
 
-  newFrame.id = "frame";
-  newFrame.appendChild(iframe);
+  function encodePath(path){
+    return path.split('/').map(seg => encodeURIComponent(seg)).join('/');
+  }
 
-  current.replaceWith(newFrame);
-});
+  async function listHtmlTemplates() {
+    const base = repoBase.value.trim().replace(/\/+$/, '') + '/';
+    const path = templatesPath.value.trim().replace(/^\/+|\/+$/g, '');
+    const ref = refBranch.value.trim() || 'main';
 
-/* ---------------------------
-   Scaling
-----------------------------*/
-document.getElementById("scale")
-  .addEventListener("input", e => {
-    previewArea.style.transform = `scale(${e.target.value})`;
+    const api = `https://api.github.com/repos/RoyalKuijpers/kuijpers-assets/contents/${encodePath(path)}?ref=${encodeURIComponent(ref)}`;
+
+    const seen = new Set();
+    const results = [];
+
+    async function walk(contentsUrl, depth){
+      if(depth > 6) return;
+      const res = await fetch(contentsUrl, { headers: { 'Accept': 'application/vnd.github+json' }});
+      if(!res.ok) throw new Error(`GitHub API: ${res.status} ${res.statusText}`);
+      const items = await res.json();
+      if(!Array.isArray(items)) return;
+
+      for(const item of items){
+        if(seen.has(item.sha)) continue;
+        seen.add(item.sha);
+
+        if(item.type === 'file' && item.name.toLowerCase().endsWith('.html')){
+          const rel = item.path;
+          const pagesUrl = base + encodePath(rel);
+          results.push({
+            name: item.name,
+            path: rel,
+            pagesUrl,
+            downloadUrl: item.download_url,
+          });
+        } else if(item.type === 'dir'){
+          await walk(item.url, depth+1);
+        }
+      }
+    }
+
+    await walk(api, 0);
+
+    results.sort((a,b) => a.path.localeCompare(b.path, undefined, {numeric:true, sensitivity:'base'}));
+    return results;
+  }
+
+  function setStatus(text){ sourceStatus.textContent = text; }
+
+  function fillTemplateSelect(){
+    templateSelect.innerHTML = '';
+    for(const t of templates){
+      const opt = document.createElement('option');
+      opt.value = t.path;
+      opt.textContent = t.path.replace(/^templates\/email\//, '');
+      templateSelect.appendChild(opt);
+    }
+  }
+
+  async function loadSelectedTemplate(){
+    if(!templates.length) return;
+    const path = templateSelect.value;
+    const t = templates.find(x => x.path === path) || templates[0];
+
+    templateUrl.value = t.pagesUrl;
+
+    let htmlText = '';
+    let loadSource = '';
+    try{
+      const res = await fetch(t.downloadUrl, { cache: 'no-store' });
+      if(!res.ok) throw new Error(`download_url fetch failed: ${res.status}`);
+      htmlText = await res.text();
+      loadSource = 'download_url';
+    }catch(e){
+      const res2 = await fetch(t.pagesUrl, { cache: 'no-store' });
+      htmlText = await res2.text();
+      loadSource = 'pages';
+    }
+
+    templateHint.textContent = `Loaded via ${loadSource}.`;
+    renderChecks(htmlText, t.pagesUrl);
+
+    const patched = patchHtmlForPreview(htmlText, t.pagesUrl);
+    setBlobAndRender(patched);
+  }
+
+  function patchHtmlForPreview(html, baseHref){
+    const hasHead = /<head[\s>]/i.test(html);
+    if(!hasHead){
+      html = html.replace(/<html[^>]*>/i, (m) => `${m}\n<head></head>`);
+    }
+
+    const hasViewport = /<meta[^>]+name=["']viewport["'][^>]*>/i.test(html);
+    if(!hasViewport){
+      html = html.replace(/<head[^>]*>/i, (m) => `${m}\n  <meta name="viewport" content="width=device-width, initial-scale=1.0" />`);
+    }
+
+    html = html.replace(/<base\b[^>]*>/ig, '');
+    html = html.replace(/<head[^>]*>/i, (m) => `${m}\n  <base href="${baseHref.replace(/\\/[^\\/]*$/, '/')}"/>`);
+
+    const previewCss = `
+  <style>
+    html,body{margin:0;padding:0;background:#f3f4f6;}
+    img{max-width:100%; height:auto;}
+  </style>`;
+    html = html.replace(/<\/head>/i, previewCss + "\n</head>");
+    return html;
+  }
+
+  function setBlobAndRender(patchedHtml){
+    if(currentBlobUrl){
+      URL.revokeObjectURL(currentBlobUrl);
+      currentBlobUrl = null;
+    }
+    const blob = new Blob([patchedHtml], { type:'text/html' });
+    currentBlobUrl = URL.createObjectURL(blob);
+    renderDevice();
+  }
+
+  function renderDevice(){
+    deviceHost.innerHTML = '';
+    const device = deviceSelect.value;
+
+    const isTel = device.startsWith('tel-');
+    const isDm = device.startsWith('dm-');
+
+    telControls.style.display = isTel ? '' : 'none';
+    dmControls.style.display = isDm ? '' : 'none';
+
+    if(isTel){
+      setRootVar('--tel-scale', String(Number(telScale.value || 1)));
+      const vp = viewportPresets[viewportPreset.selectedIndex] || viewportPresets[2];
+      setRootVar('--viewport-w', String(vp.w));
+      setRootVar('--viewport-h', String(vp.h));
+
+      const frame = (device === 'tel-pixel')
+        ? document.createElement('pixel-9-pro')
+        : document.createElement('iphone-16-max');
+
+      frame.setAttribute('mode', telMode.value);
+      frame.className = 'tel-host';
+
+      const viewport = document.createElement('div');
+      viewport.className = 'tel-viewport';
+
+      const iframe = document.createElement('iframe');
+      iframe.setAttribute('title', 'Template preview');
+      iframe.setAttribute('loading', 'eager');
+      iframe.setAttribute('referrerpolicy', 'no-referrer');
+      iframe.setAttribute('sandbox', 'allow-forms allow-popups allow-popups-to-escape-sandbox allow-same-origin');
+      iframe.src = currentBlobUrl || 'about:blank';
+
+      viewport.appendChild(iframe);
+      frame.appendChild(viewport);
+      deviceHost.appendChild(frame);
+      return;
+    }
+
+    if(isDm){
+      const type = device.replace('dm-',''); // phone/tablet/laptop
+      const dm = document.createElement('device-mockup');
+      dm.setAttribute('type', type);
+      dm.setAttribute('mode', 'iframe');
+      dm.setAttribute('alt', 'Template preview');
+      dm.setAttribute('href', currentBlobUrl || 'about:blank');
+
+      applyDmSizing(dm, type);
+      applyDmAnimation(dm);
+      applyDmColors(type);
+
+      deviceHost.appendChild(dm);
+    }
+  }
+
+  function applyDmSizing(dm, type){
+    const preset = dmSizePreset.value;
+    dm.removeAttribute('width');
+    dm.removeAttribute('height');
+
+    const map = {
+      phone: {
+        presets: { s:{attr:'height',value:480}, m:{attr:'height',value:620}, l:{attr:'height',value:760} },
+        hint: 'Phone: choose height; width scales automatically.'
+      },
+      tablet: {
+        presets: { s:{attr:'width',value:420}, m:{attr:'width',value:560}, l:{attr:'width',value:720} },
+        hint: 'Tablet: choose width; height scales automatically.'
+      },
+      laptop: {
+        presets: { s:{attr:'width',value:520}, m:{attr:'width',value:720}, l:{attr:'width',value:920} },
+        hint: 'Laptop: choose width; height scales automatically.'
+      }
+    };
+
+    const cfg = map[type] || map.phone;
+    const p = cfg.presets[preset] || cfg.presets.m;
+    dm.setAttribute(p.attr, String(p.value));
+    dmSizeHint.textContent = cfg.hint + ' (Uses one dimension to preserve aspect ratio.)';
+  }
+
+  function applyDmAnimation(dm){
+    dm.classList.remove('animated','tilt');
+    if(!dmAnimOn.checked || dmAnim.value === 'none') return;
+
+    dm.classList.add('animated');
+    if(dmAnim.value === 'tilt') dm.classList.add('tilt');
+  }
+
+  function applyDmColors(type){
+    setRootVar('--dm-bezel', cBezel.value);
+    setRootVar('--dm-camera', cCamera.value);
+    setRootVar('--dm-screen-bg', cScreenBg.value);
+    setRootVar('--dm-shadow', rgbaFromHex(cShadow.value, shadowAlpha.value));
+
+    const showKeyboard = (type === 'phone' || type === 'laptop');
+    kbRow.style.display = showKeyboard ? '' : 'none';
+    if(showKeyboard){
+      setRootVar('--dm-keyboard', cKeyboard.value);
+      setRootVar('--dm-keyboard-grad', cKeyboardGrad.value);
+    }
+  }
+
+  function fillViewportPresets(){
+    viewportPreset.innerHTML = '';
+    for(const vp of viewportPresets){
+      const opt = document.createElement('option');
+      opt.textContent = vp.label;
+      viewportPreset.appendChild(opt);
+    }
+    viewportPreset.selectedIndex = 2;
+  }
+
+  function fillDmSizePresets(){
+    dmSizePreset.innerHTML = '';
+    for(const o of [{v:'s',t:'Small'},{v:'m',t:'Medium'},{v:'l',t:'Large'}]){
+      const opt = document.createElement('option');
+      opt.value = o.v;
+      opt.textContent = o.t;
+      dmSizePreset.appendChild(opt);
+    }
+    dmSizePreset.value = 'm';
+  }
+
+  function renderChecks(htmlText, baseUrl){
+    const checks = analyzeEmailTemplate(htmlText);
+
+    checksBox.innerHTML = '';
+    if(checks.warnings.length){
+      const box = document.createElement('div');
+      box.className = 'warn';
+      box.innerHTML = `<div style="font-weight:700; font-size:12px;">Warnings (${checks.warnings.length})</div>`;
+      const ul = document.createElement('ul');
+      for(const w of checks.warnings){
+        const li = document.createElement('li');
+        li.textContent = w;
+        ul.appendChild(li);
+      }
+      box.appendChild(ul);
+      checksBox.appendChild(box);
+    }else{
+      const box = document.createElement('div');
+      box.className = 'ok';
+      box.innerHTML = `<div style="font-weight:700; font-size:12px;">Looks good</div><ul><li>No common responsive/email-client issues detected by heuristics.</li></ul>`;
+      checksBox.appendChild(box);
+    }
+
+    if(checks.tips.length){
+      const box = document.createElement('div');
+      box.className = 'group';
+      box.style.marginTop = '10px';
+      box.innerHTML = `<h3>Tips</h3>`;
+      const ul = document.createElement('ul');
+      ul.style.margin = '8px 0 0 16px';
+      ul.style.color = 'rgba(255,255,255,.82)';
+      ul.style.fontSize = '12px';
+      for(const t of checks.tips){
+        const li = document.createElement('li');
+        li.textContent = t;
+        ul.appendChild(li);
+      }
+      box.appendChild(ul);
+      checksBox.appendChild(box);
+    }
+
+    const meta = document.createElement('div');
+    meta.className = 'hint';
+    meta.innerHTML = `Heuristics only (not a full email-client emulator). Base: <span class="mono">${baseUrl}</span>`;
+    checksBox.appendChild(meta);
+  }
+
+  function analyzeEmailTemplate(html){
+    const warnings = [];
+    const tips = [];
+
+    const hasViewport = /<meta[^>]+name=["']viewport["'][^>]*>/i.test(html);
+    if(!hasViewport){
+      warnings.push('Missing <meta name="viewport"> (mobile clients may not scale the layout correctly).');
+      tips.push('Add <meta name="viewport" content="width=device-width, initial-scale=1.0"> in <head>.');
+    }else{
+      const vp = html.match(/<meta[^>]+name=["']viewport["'][^>]*content=["']([^"']+)["'][^>]*>/i);
+      const content = vp?.[1] || '';
+      if(!/width\s*=\s*device-width/i.test(content)){
+        warnings.push('Viewport meta present, but does not include width=device-width.');
+        tips.push('Ensure viewport uses width=device-width for predictable breakpoints.');
+      }
+    }
+
+    const has600 = /max-width\s*:\s*6\d{2}px/i.test(html) || /width\s*:\s*6\d{2}px/i.test(html);
+    if(!has600){
+      warnings.push('No obvious max-width ~600px container found (many email templates use ~600px for desktop).');
+      tips.push('Consider wrapping content in a container with max-width:600px and center it for desktop clients.');
+    }
+
+    const hasMedia = /@media\s*\(/i.test(html);
+    if(!hasMedia){
+      warnings.push('No @media queries found (responsive adjustments may be limited).');
+      tips.push('Add mobile media queries (e.g., max-width:600px) to stack columns and scale text/images.');
+    }
+
+    const externalCss = /<link[^>]+rel=["']stylesheet["'][^>]*>/i.test(html);
+    if(externalCss){
+      warnings.push('External stylesheet <link rel="stylesheet"> detected (many email clients ignore external CSS).');
+      tips.push('Inline critical CSS; keep <style> blocks minimal and in the head for compatibility.');
+    }
+
+    const scripts = /<script\b/i.test(html);
+    if(scripts){
+      warnings.push('<script> detected (most email clients strip scripts).');
+      tips.push('Remove scripts from email templates; use pure HTML/CSS.');
+    }
+
+    const imgTags = [...html.matchAll(/<img\b[^>]*>/ig)].map(m => m[0]);
+    const riskyImgs = imgTags.filter(tag => {
+      const hasW = /\bwidth\s*=\s*["']?\d+/i.test(tag) || /width\s*:\s*\d+/i.test(tag);
+      const hasMaxW = /max-width\s*:\s*100%/i.test(tag);
+      return !(hasW || hasMaxW);
+    });
+    if(riskyImgs.length >= 3){
+      warnings.push('Multiple <img> tags without explicit width/max-width hints (can cause overflow in some clients).');
+      tips.push('Add width attributes and style="max-width:100%; height:auto; display:block;" to images where appropriate.');
+    }
+
+    const hasTable = /<table\b/i.test(html);
+    if(!hasTable){
+      warnings.push('No <table> layout detected (div-based layouts can be fragile across email clients).');
+      tips.push('For maximum email client compatibility, prefer table-based structure for major layout blocks.');
+    }
+
+    return { warnings, tips };
+  }
+
+  async function init(){
+    fillViewportPresets();
+    fillDmSizePresets();
+
+    try{
+      setStatus('discovering…');
+      templates = await listHtmlTemplates();
+      if(!templates.length){
+        setStatus('no templates found');
+        templateHint.textContent = 'No .html files found in the folder.';
+        return;
+      }
+      setStatus(`${templates.length} found`);
+      fillTemplateSelect();
+      templateSelect.value = templates[0].path;
+
+      await loadSelectedTemplate();
+      deviceSelect.value = 'tel-iphone';
+      onDeviceChanged();
+    }catch(e){
+      setStatus('error');
+      templateHint.textContent = String(e);
+    }
+  }
+
+  function onDeviceChanged(){
+    renderDevice();
+    if(deviceSelect.value.startsWith('dm-')){
+      applyDmColors(deviceSelect.value.replace('dm-',''));
+    }
+  }
+
+  templateSelect.addEventListener('change', loadSelectedTemplate);
+  deviceSelect.addEventListener('change', onDeviceChanged);
+
+  [repoBase, templatesPath, refBranch].forEach(inp => {
+    inp.addEventListener('change', async () => {
+      setStatus('discovering…');
+      templates = [];
+      templateSelect.innerHTML = '';
+      templateUrl.value = '';
+      checksBox.innerHTML = '';
+      try{
+        templates = await listHtmlTemplates();
+        if(!templates.length){
+          setStatus('no templates found');
+          return;
+        }
+        setStatus(`${templates.length} found`);
+        fillTemplateSelect();
+        templateSelect.value = templates[0].path;
+        await loadSelectedTemplate();
+      }catch(e){
+        setStatus('error');
+        templateHint.textContent = String(e);
+      }
+    });
   });
 
-/* ---------------------------
-   Animations
-----------------------------*/
-document.getElementById("animSelect")
-  .addEventListener("change", e => {
-    previewArea.classList.toggle("floaty", e.target.value === "float");
+  // Telephone controls
+  telMode.addEventListener('change', renderDevice);
+  telScale.addEventListener('change', renderDevice);
+  viewportPreset.addEventListener('change', renderDevice);
+
+  // Device mockup controls
+  dmSizePreset.addEventListener('change', renderDevice);
+  dmAnim.addEventListener('change', renderDevice);
+  dmAnimOn.addEventListener('change', renderDevice);
+
+  // Color controls
+  [cBezel,cCamera,cKeyboard,cKeyboardGrad,cShadow,shadowAlpha,cScreenBg].forEach(inp => {
+    inp.addEventListener('input', () => {
+      if(deviceSelect.value.startsWith('dm-')){
+        applyDmColors(deviceSelect.value.replace('dm-',''));
+      }
+    });
   });
 
-templateSelect.addEventListener("change", loadTemplate);
-
-loadTemplateList();
+  init();
+})();
 </script>
-
 </body>
 </html>
