@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Email Template Multi-Device Preview</title>
+
+  <!-- Telephone (Phones) -->
+  <script type="module"
+    src="https://cdn.jsdelivr.net/npm/@sneas/telephone@1/iphone-16-max.js">
+  </script>
+  <script type="module"
+    src="https://cdn.jsdelivr.net/npm/@sneas/telephone@1/pixel-9-pro.js">
+  </script>
+
+  <!-- Device-Mockup (Tablet + Laptop) -->
+  <script type="module"
+    src="https://cdn.jsdelivr.net/npm/@devmansam/device-mockup@1/dist/device-mockup.js">
+  </script>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+      height: 100vh;
+      display: flex;
+      overflow: hidden;
+      background:
+        url("https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=2400&q=60")
+        center/cover no-repeat;
+    }
+    body::before {
+      content:"";
+      position:fixed;
+      inset:0;
+      backdrop-filter: blur(18px);
+      background: rgba(0,0,0,.55);
+    }
+
+    /* Left Panel */
+    .panel {
+      width: 360px;
+      background: rgba(255,255,255,.92);
+      padding: 16px;
+      z-index: 10;
+      overflow-y: auto;
+    }
+
+    select,input {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+    }
+
+    /* Preview Area */
+    .preview {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 5;
+      transition: transform .4s ease;
+    }
+
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: white;
+    }
+
+    /* Animations (Device-Mockup pattern) */
+    .floaty {
+      animation: floaty 3s ease-in-out infinite;
+    }
+    @keyframes floaty {
+      0%,100% { transform: translateY(0); }
+      50% { transform: translateY(-12px); }
+    }
+
+    /* Responsive Warnings */
+    .warnings {
+      margin-top: 14px;
+      padding: 12px;
+      border-radius: 12px;
+      background: #fff3cd;
+      font-size: 13px;
+      display:none;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Controls -->
+  <div class="panel">
+    <h3>Template Picker</h3>
+
+    <select id="templateSelect"></select>
+
+    <h3>Device Picker</h3>
+    <select id="deviceSelect">
+      <option value="iphone">Phone – iPhone 16 Max</option>
+      <option value="pixel">Phone – Pixel 9 Pro</option>
+      <option value="tablet">Tablet – iPad Style</option>
+      <option value="laptop">Laptop – Macbook Style</option>
+    </select>
+
+    <label>Scale</label>
+    <input id="scale" type="range" min="0.5" max="1.2"
+           step="0.05" value="1"/>
+
+    <label>Animation</label>
+    <select id="animSelect">
+      <option value="off">Off</option>
+      <option value="float">Floating</option>
+    </select>
+
+    <div id="warnings" class="warnings"></div>
+  </div>
+
+  <!-- Preview -->
+  <div class="preview" id="previewArea">
+    <iphone-16-max id="frame">
+      <iframe id="screen"></iframe>
+    </iphone-16-max>
+  </div>
+
+<script>
+const API =
+ "https://api.github.com/repos/RoyalKuijpers/kuijpers-assets/contents/templates/email";
+
+const templateSelect = document.getElementById("templateSelect");
+const deviceSelect   = document.getElementById("deviceSelect");
+const iframe         = document.getElementById("screen");
+const previewArea    = document.getElementById("previewArea");
+const warningsBox    = document.getElementById("warnings");
+
+/* ---------------------------
+   Load templates dynamically
+----------------------------*/
+async function loadTemplateList() {
+  const files = await fetch(API).then(r => r.json());
+  const htmlFiles = files.filter(f => f.name.endsWith(".html"));
+
+  templateSelect.innerHTML =
+    htmlFiles.map(f => {
+      const url =
+        `https://royalkuijpers.github.io/kuijpers-assets/templates/email/${encodeURIComponent(f.name)}`;
+      return `<option value="${url}">${f.name}</option>`;
+    }).join("");
+
+  loadTemplate();
+}
+
+/* ---------------------------
+   Load template via srcdoc
+----------------------------*/
+async function loadTemplate() {
+  const url = templateSelect.value;
+  const html = await fetch(url).then(r => r.text());
+
+  iframe.srcdoc = html;
+  responsiveChecks(html);
+}
+
+/* ---------------------------
+   Responsive detector
+----------------------------*/
+function responsiveChecks(html) {
+  const issues = [];
+  if (!html.includes("viewport"))
+    issues.push("Missing <meta viewport>.");
+  if (!html.match(/max-width:\s*600px/))
+    issues.push("No max-width:600px email wrapper.");
+  if (!html.match(/max-width:\s*100%/))
+    issues.push("Images missing max-width:100%.");
+  if (!html.includes("<table"))
+    issues.push("No <table> layout → Outlook risk.");
+
+  if (issues.length) {
+    warningsBox.style.display = "block";
+    warningsBox.innerHTML =
+      "<b>Responsive Warnings:</b><ul>" +
+      issues.map(x => `<li>${x}</li>`).join("") +
+      "</ul><b>Tips:</b> Use tables, inline CSS, max-width wrappers, viewport meta.";
+  } else {
+    warningsBox.style.display = "none";
+  }
+}
+
+/* ---------------------------
+   Device switcher
+----------------------------*/
+deviceSelect.addEventListener("change", () => {
+  const current = document.getElementById("frame");
+
+  let newFrame;
+
+  if (deviceSelect.value === "iphone")
+    newFrame = document.createElement("iphone-16-max");
+
+  else if (deviceSelect.value === "pixel")
+    newFrame = document.createElement("pixel-9-pro");
+
+  else if (deviceSelect.value === "tablet") {
+    newFrame = document.createElement("device-mockup");
+    newFrame.setAttribute("device", "tablet");
+    newFrame.setAttribute("width", "700");   // sizing API :contentReference[oaicite:3]{index=3}
+  }
+
+  else if (deviceSelect.value === "laptop") {
+    newFrame = document.createElement("device-mockup");
+    newFrame.setAttribute("device", "laptop");
+    newFrame.setAttribute("width", "900");   // sizing API :contentReference[oaicite:4]{index=4}
+  }
+
+  newFrame.id = "frame";
+  newFrame.appendChild(iframe);
+
+  current.replaceWith(newFrame);
+});
+
+/* ---------------------------
+   Scaling
+----------------------------*/
+document.getElementById("scale")
+  .addEventListener("input", e => {
+    previewArea.style.transform = `scale(${e.target.value})`;
+  });
+
+/* ---------------------------
+   Animations
+----------------------------*/
+document.getElementById("animSelect")
+  .addEventListener("change", e => {
+    previewArea.classList.toggle("floaty", e.target.value === "float");
+  });
+
+templateSelect.addEventListener("change", loadTemplate);
+
+loadTemplateList();
+</script>
+
+</body>
+</html>
