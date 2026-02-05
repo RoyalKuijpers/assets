@@ -295,11 +295,12 @@
     }
 
     device-mockup.landscape{
-      transform: rotate(90deg);
+      transform: rotate(-90deg);
     }
 
     /* Telephone inner viewport */
     .tel-host{ transform: scale(var(--tel-scale)); transform-origin:center; }
+    .tel-host.landscape{ transform: scale(var(--tel-scale)) rotate(-90deg); }
     .tel-viewport{
       width: calc(var(--viewport-w) * 1px);
       height: calc(var(--viewport-h) * 1px);
@@ -307,6 +308,20 @@
       border-radius: 18px;
       overflow:auto;
       position: relative;
+    }
+    /* Landscape: swap viewport dimensions and rotate content back so it reads correctly */
+    .tel-host.landscape .tel-viewport{
+      width: calc(var(--viewport-h) * 1px);
+      height: calc(var(--viewport-w) * 1px);
+    }
+    .tel-host.landscape .tel-viewport iframe{
+      transform: rotate(90deg);
+      transform-origin: top left;
+      position: absolute;
+      top: 0;
+      left: calc(var(--viewport-h) * 1px);
+      width: calc(var(--viewport-w) * 1px);
+      height: calc(var(--viewport-h) * 1px);
     }
     .tel-viewport iframe{
       width:100%;
@@ -353,7 +368,7 @@
           <b>Template preview</b>
           <span>Device mockups + responsive checks</span>
         </div>
-        <div class="badge">v2</div>
+        <div class="badge">v2.1</div>
       </header>
 
       <div class="content">
@@ -420,7 +435,12 @@
             <label for="viewportPreset">Viewport preset</label>
             <select id="viewportPreset"></select>
             <div class="hint">
-              Controls the iframe viewport inside the Telephone frame (useful for testing email breakpoints).
+              Controls the iframe viewport inside the Telephone frame (useful for testing email breakpoints). When landscape mode is enabled, the viewport dimensions are swapped.
+            </div>
+
+            <div class="toggle" id="telOrientationToggle">
+              <span>Rotate to landscape</span>
+              <input id="telOrientation" type="checkbox" />
             </div>
           </div>
 
@@ -551,6 +571,8 @@
   const telMode = el('telMode');
   const telScale = el('telScale');
   const viewportPreset = el('viewportPreset');
+  const telOrientationToggle = el('telOrientationToggle');
+  const telOrientation = el('telOrientation');
 
   const dmControls = el('dmControls');
   const dmSizePreset = el('dmSizePreset');
@@ -749,6 +771,11 @@
 
       frame.setAttribute('mode', telMode.value);
       frame.className = 'tel-host';
+      
+      // Apply landscape class if orientation toggle is checked
+      if(telOrientation && telOrientation.checked) {
+        frame.classList.add('landscape');
+      }
 
       const viewport = document.createElement('div');
       viewport.className = 'tel-viewport';
@@ -1149,6 +1176,9 @@
   telMode.addEventListener('change', renderDevice);
   telScale.addEventListener('change', renderDevice);
   viewportPreset.addEventListener('change', renderDevice);
+  if(telOrientation) {
+    telOrientation.addEventListener('change', renderDevice);
+  }
 
   // Device mockup controls
   dmSizePreset.addEventListener('change', renderDevice);
