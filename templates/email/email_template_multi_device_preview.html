@@ -481,7 +481,8 @@
         </div>
 
         <div class="group">
-          <h3>Export <small>snapshot of device mockup</small></h3>
+          <h3>Export</h3>
+          <p style="font-size:11px; color: rgba(255,255,255,.65); margin: -6px 0 10px 0;">Snapshot of device mockup</p>
           
           <div class="toggle">
             <span>Include background</span>
@@ -548,6 +549,9 @@
   const checksBox = el('checksBox');
   const deviceHost = el('deviceHost');
 
+  // Constants
+  const ANIMATION_SETTLE_DELAY = 300; // ms - wait for CSS animations/transitions to complete
+
   let templates = [];
   let currentBlobUrl = null;
 
@@ -601,9 +605,7 @@
 
         if(item.type === 'file' && item.name.toLowerCase().endsWith('.html')){
           // Filter out preview HTML files
-          const isPreviewFile = item.name.toLowerCase().includes('preview') || 
-                                item.name.toLowerCase().includes('_preview') ||
-                                item.name === 'email_template_multi_device_preview.html';
+          const isPreviewFile = item.name.toLowerCase().includes('preview');
           
           if(!isPreviewFile){
             const rel = item.path;
@@ -956,8 +958,7 @@
       btn.textContent = 'Exporting...';
       btn.disabled = true;
 
-      // Wait for CSS animations/transitions to complete before capturing
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await new Promise(resolve => setTimeout(resolve, ANIMATION_SETTLE_DELAY));
 
       const canvas = await html2canvas(deviceWrap, {
         backgroundColor: exportWithBg ? '#0b1220' : null,
@@ -1004,8 +1005,7 @@
       btn.textContent = 'Exporting...';
       btn.disabled = true;
 
-      // Wait for CSS animations/transitions to complete before capturing
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await new Promise(resolve => setTimeout(resolve, ANIMATION_SETTLE_DELAY));
 
       const canvas = await html2canvas(deviceWrap, {
         backgroundColor: exportWithBg ? '#0b1220' : null,
