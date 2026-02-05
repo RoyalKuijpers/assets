@@ -207,7 +207,12 @@
       background: rgba(255,255,255,.06);
       margin-top:10px;
     }
-    .toggle span{font-size:12px; color: rgba(255,255,255,.84)}
+    .toggle label{
+      font-size:12px; 
+      color: rgba(255,255,255,.84);
+      margin:0;
+      cursor:pointer;
+    }
     .toggle input{width:42px; height:24px}
 
     .warn{
@@ -491,7 +496,7 @@
           <p class="section-description">Snapshot of device mockup</p>
           
           <div class="toggle">
-            <span>Include background</span>
+            <label for="exportWithBg">Include background</label>
             <input id="exportWithBg" type="checkbox" />
           </div>
           
@@ -941,8 +946,8 @@
 
   // Helper function to generate sanitized filename for export
   function generateExportFilename(extension) {
-    const templateName = templateSelect.selectedOptions[0]?.textContent || 'template';
-    const deviceType = deviceSelect.selectedOptions[0]?.textContent || 'device';
+    const templateName = (templateSelect.selectedOptions[0]?.textContent || 'template').trim();
+    const deviceType = (deviceSelect.selectedOptions[0]?.textContent || 'device').trim();
     const sanitizedTemplate = templateName.replace(/[^a-z0-9]/gi, '_');
     const sanitizedDevice = deviceType.replace(/[^a-z0-9]/gi, '_');
     return `${sanitizedTemplate}_${sanitizedDevice}.${extension}`;
