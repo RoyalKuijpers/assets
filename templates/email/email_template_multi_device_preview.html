@@ -620,7 +620,7 @@
     }
 
     html = html.replace(/<base\b[^>]*>/ig, '');
-    html = html.replace(/<head[^>]*>/i, (m) => `${m}\n  <base href="${baseHref.replace(/\\/[^\\/]*$/, '/')}"/>`);
+    html = html.replace(/<head[^>]*>/i, (m) => `${m}\n  <base href="${baseHref.replace(/\/[^\/]*$/, '/')}"/>`);
 
     const previewCss = `
   <style>
