@@ -291,6 +291,11 @@
       --keyboard-gradient: var(--dm-keyboard-grad);
       --shadow-color: var(--dm-shadow);
       --screen-background: var(--dm-screen-bg);
+      transition: transform 0.3s ease;
+    }
+
+    device-mockup.landscape{
+      transform: rotate(90deg);
     }
 
     /* Telephone inner viewport */
@@ -436,6 +441,11 @@
               <input id="dmAnimOn" type="checkbox" checked />
             </div>
 
+            <div class="toggle" id="dmOrientationToggle">
+              <span>Rotate to landscape</span>
+              <input id="dmOrientation" type="checkbox" />
+            </div>
+
             <div id="dmColorControls" style="margin-top:10px">
               <h3 style="margin:12px 0 8px; font-size:12px; text-transform:uppercase; letter-spacing:.3px;">Colors</h3>
 
@@ -547,6 +557,8 @@
   const dmSizeHint = el('dmSizeHint');
   const dmAnim = el('dmAnim');
   const dmAnimOn = el('dmAnimOn');
+  const dmOrientationToggle = el('dmOrientationToggle');
+  const dmOrientation = el('dmOrientation');
 
   const kbRow = el('kbRow');
   const cBezel = el('cBezel');
@@ -695,8 +707,11 @@
 
     const previewCss = `
   <style>
-    html,body{margin:0;padding:0;background:#f3f4f6;}
+    html,body{margin:0;padding:0;background:#f3f4f6;overflow-x:hidden;}
+    body{max-width:100%;box-sizing:border-box;}
     img{max-width:100%; height:auto;}
+    table{max-width:100%;}
+    *{box-sizing:border-box;}
   </style>`;
     html = html.replace(/<\/head>/i, previewCss + "\n</head>");
     return html;
@@ -791,14 +806,27 @@
     const p = cfg.presets[preset] || cfg.presets.m;
     dm.setAttribute(p.attr, String(p.value));
     dmSizeHint.textContent = cfg.hint + ' (Uses one dimension to preserve aspect ratio.)';
+    
+    // Show/hide orientation toggle based on device type
+    // Only show for phone and tablet, hide for laptop
+    if(dmOrientationToggle) {
+      dmOrientationToggle.style.display = (type === 'laptop') ? 'none' : '';
+    }
   }
 
   function applyDmAnimation(dm){
-    dm.classList.remove('animated','tilt');
-    if(!dmAnimOn.checked || dmAnim.value === 'none') return;
+    dm.classList.remove('animated','tilt','landscape');
+    if(!dmAnimOn.checked || dmAnim.value === 'none') {
+      // Still apply landscape if checked
+      if(dmOrientation && dmOrientation.checked) {
+        dm.classList.add('landscape');
+      }
+      return;
+    }
 
     dm.classList.add('animated');
     if(dmAnim.value === 'tilt') dm.classList.add('tilt');
+    if(dmOrientation && dmOrientation.checked) dm.classList.add('landscape');
   }
 
   function applyDmColors(type){
@@ -1126,12 +1154,18 @@
   dmSizePreset.addEventListener('change', renderDevice);
   dmAnim.addEventListener('change', renderDevice);
   dmAnimOn.addEventListener('change', renderDevice);
+  if(dmOrientation) {
+    dmOrientation.addEventListener('change', renderDevice);
+  }
 
   // Color controls
   [cBezel,cCamera,cKeyboard,cKeyboardGrad,cShadow,shadowAlpha,cScreenBg].forEach(inp => {
     inp.addEventListener('input', () => {
       if(deviceSelect.value.startsWith('dm-')){
-        applyDmColors(deviceSelect.value.replace('dm-',''));
+        const type = deviceSelect.value.replace('dm-','');
+        applyDmColors(type);
+        // Force re-render to ensure color changes are applied
+        renderDevice();
       }
     });
   });
